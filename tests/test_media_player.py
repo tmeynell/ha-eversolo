@@ -389,13 +389,28 @@ async def test_source_list_is_the_hardware_inputs_plus_the_synthetic_cd(
     ]
 
 
-async def test_a_loaded_disc_reads_back_as_the_cd_source(
+async def test_a_genuine_disc_reads_back_as_the_cd_source(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """With a disc in and the internal player live, the source is the CD."""
-    entity_id = await _player(hass, aioclient_mock)
+    """With the disc actually playing (``playType`` 5), the source is the CD."""
+    entity_id = await _player(hass, aioclient_mock, _cd())
 
     assert hass.states.get(entity_id).attributes["source"] == CD_SOURCE
+
+
+async def test_a_disc_in_the_tray_is_not_the_source_while_spotify_plays(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#03, the reported defect: a disc merely sitting in the tray isn't the source.
+
+    The default fixture has a disc loaded but Spotify Connect audible
+    (``playType`` 6) through the same internal-player input — the source
+    must follow ``playType``, the same rule ``media_title`` etc. already
+    follow (#02), not ``is_cd``.
+    """
+    entity_id = await _player(hass, aioclient_mock)
+
+    assert hass.states.get(entity_id).attributes["source"] == "Internal player"
 
 
 async def test_without_a_disc_the_source_is_the_input_name(

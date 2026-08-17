@@ -67,6 +67,25 @@ def test_playback_parses_a_genuine_cd_state() -> None:
     assert playback.music_type == 4
 
 
+def test_is_local_source_follows_playtype_not_extension() -> None:
+    """#03: whether the disc is audible is ``playType`` alone, not ``is_cd``.
+
+    Both fixtures have a disc physically in the tray (``extension == "cd"``),
+    but only the genuine disc capture (``playType`` 5) is what's playing —
+    the other has Spotify Connect audible through the same input.
+    """
+    genuine_disc = EversoloPlayback.from_state(fixture_json("getstate_cd.json"))
+    shadowed_by_spotify = EversoloPlayback.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
+
+    assert genuine_disc.is_local_source is True
+    assert shadowed_by_spotify.is_local_source is False
+    # is_cd still honestly answers "is a disc loaded" for both.
+    assert genuine_disc.is_cd is True
+    assert shadowed_by_spotify.is_cd is True
+
+
 def test_playback_parses_bluetooth_state() -> None:
     """Bluetooth (playType 4) reads its own block, streaming block as fallback.
 

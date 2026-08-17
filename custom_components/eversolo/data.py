@@ -142,6 +142,11 @@ class EversoloPlayback:
     # ``playingMusic.type`` — the device's own tag for the loaded item, echoed
     # back verbatim as the cover fetch's ``musicType`` (see api.py).
     music_type: int | None = None
+    # Top-level ``playType`` — the device's own declaration of which block is
+    # audible, already used by ``from_state`` to dispatch title/artist/art.
+    # Stored so ``source`` (#03) can reuse that one decision rather than
+    # re-deriving it from ``extension``/``intputTag``.
+    play_type: int | None = None
     play_status: int | None = None
     position: int | None = None  # milliseconds
     duration: int | None = None  # milliseconds
@@ -167,6 +172,16 @@ class EversoloPlayback:
     def is_cd(self) -> bool:
         """True when the active media is a CD (``extension == "cd"``)."""
         return (self.extension or "").lower() == "cd"
+
+    @property
+    def is_local_source(self) -> bool:
+        """True when the local player — a spinning disc — is what's audible.
+
+        ``playType == 5``, the same value the dispatch in ``from_state`` uses
+        to pick title/artist/art. A disc can sit in the tray while something
+        else plays (#02/#03), so this is a different question from ``is_cd``.
+        """
+        return self.play_type == 5
 
     @property
     def has_media(self) -> bool:
@@ -277,6 +292,7 @@ class EversoloPlayback:
             # fetch the disc's art for a track that never came off the disc.
             song_id=_as_int(music.get("id")) if play_type == 5 else None,
             music_type=_as_int(music.get("type")) if play_type == 5 else None,
+            play_type=play_type,
             play_status=_as_int(info.get("playStatus")),
             position=_first(
                 _as_int(info.get("currentPosition")), _as_int(state.get("position"))

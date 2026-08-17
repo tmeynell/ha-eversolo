@@ -305,18 +305,14 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
     def source(self) -> str | None:
         """Return the current input source.
 
-        A disc reads back as the CD source only while the internal player is
-        the live input: the unit keeps reporting a loaded disc in
-        ``playingMusic`` even on the TV input (#03), where the TV is plainly
-        what is playing.
+        The synthetic CD source reads back only while the local player is
+        what's audible (``playback.is_local_source``, ``playType == 5``,
+        #03) — the unit keeps reporting a loaded disc in ``playingMusic``
+        even when something else is what's playing, so a disc merely being
+        in the tray can't be the test.
         """
         current = self.coordinator.data.inputs.current
-        if (
-            self._has_cd
-            and self._playback.is_cd
-            and current is not None
-            and current.tag == INPUT_INTERNAL_PLAYER
-        ):
+        if self._has_cd and self._playback.is_local_source:
             reported = CD_SOURCE
         else:
             reported = current.name if current else None
