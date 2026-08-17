@@ -1,4 +1,4 @@
-# Eversolo DMP-A8
+# Eversolo
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
@@ -9,20 +9,20 @@
 
 [![Community Forum][forum-shield]][forum]
 
-_Home Assistant integration for the [Eversolo](https://www.eversolo.com/) DMP-A8._
+_Home Assistant integration for [Eversolo](https://www.eversolo.com/) streamers._
 
 ## Description
 
-This custom component integrates the Eversolo DMP-A8 into
-[Home Assistant](https://www.home-assistant.io/). It talks to the streamer's own
+This custom component integrates Eversolo streamers into
+[Home Assistant](https://www.home-assistant.io/). It talks to the device's own
 control API on port 9529 over your LAN — no cloud account, no vendor app, and
 nothing to authenticate.
 
-It targets Eversolo's **DMP-A** line — the same devices the official Eversolo
-Control app talks to over this API. Every entity is gated on what the device
-itself reports it has, so other DMP-A models should work with a reduced entity
-set; **only the DMP-A8 Gen 2 (firmware v1.1.50) has been tested.** A box that
-does not call itself a DMP-A is refused during setup.
+It works with any Eversolo device the official Eversolo Control app supports.
+Every entity is gated on what the device itself reports it has, so entity sets
+vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50) has been tested.** A
+device that does not identify itself as an Eversolo DMP model is refused
+during setup.
 
 ### Entities
 
