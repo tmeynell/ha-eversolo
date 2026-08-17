@@ -371,7 +371,7 @@ async def test_a_list_the_device_stopped_answering_keeps_its_last_value(
 
 def _screen_showing(vu: int, spectrum: int) -> dict:
     """Return the captured getState with the front screen's two flags set."""
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     state["vuDisplayMode"] = vu
     state["spDisplayMode"] = spectrum
     return state
@@ -570,7 +570,7 @@ async def test_switching_off_a_screen_that_reports_nothing_writes_nothing(
     A blind toggle here would switch the VU meter *on* in answer to a request
     to switch the screen off.
     """
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     del state["vuDisplayMode"]
     del state["spDisplayMode"]
     await _selects(hass, aioclient_mock, {GET_STATE: {"json": state}})

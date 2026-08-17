@@ -45,7 +45,7 @@ async def test_seam_getstate_typed_parse(
     """GetState parses into a typed EversoloData through the transport."""
     aioclient_mock.get(
         f"{BASE_URL}/ZidooMusicControl/v2/getState",
-        json=fixture_json("getstate_cd.json"),
+        json=fixture_json("getstate_spotify_disc_loaded.json"),
     )
 
     data = await _client(hass).async_read_state()
@@ -110,7 +110,7 @@ async def test_seam_profile_from_real_captures(
     )
 
     profile = await _client(hass).async_read_profile(
-        EversoloProcessing.from_state(fixture_json("getstate_cd.json"))
+        EversoloProcessing.from_state(fixture_json("getstate_spotify_disc_loaded.json"))
     )
 
     assert profile.device.model == "DMP-A8 Gen 2"
@@ -247,7 +247,7 @@ async def test_a_missing_power_menu_does_not_cost_the_profile(
     )
 
     profile = await _client(hass).async_read_profile(
-        EversoloProcessing.from_state(fixture_json("getstate_cd.json"))
+        EversoloProcessing.from_state(fixture_json("getstate_spotify_disc_loaded.json"))
     )
 
     assert profile.device.model == "DMP-A8 Gen 2"

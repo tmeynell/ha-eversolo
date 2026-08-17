@@ -50,7 +50,7 @@ async def test_audio_format_does_not_report_a_stale_discs_numbers(
     """
     on_the_tv = fixture_json("getinputandoutputlist.json")
     on_the_tv["inputIndex"] = 3
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     state["volumeData"]["intputTag"] = "EARC-EARC"
     state["everSoloPlayInfo"]["everSoloPlayAudioInfo"] = {}
     state["everSoloPlayInfo"]["everSoloPlayOutputInfo"]["outPutSampleRate"] = 48000

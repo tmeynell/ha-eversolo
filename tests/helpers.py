@@ -60,7 +60,7 @@ GET_KNOB_OPTION = "/SystemSettings/displaySettings/getKnobSettingOption"
 
 # Every endpoint the coordinator polls, with the capture that answers it.
 DEVICE_ENDPOINTS: dict[str, str] = {
-    GET_STATE: "getstate_cd.json",
+    GET_STATE: "getstate_spotify_disc_loaded.json",
     GET_MODEL: "getmodel.json",
     GET_SYSTEM_SETTINGS: "getsystemsettings.json",
     GET_SCREEN_BRIGHTNESS: "getscreenbrightness.json",
@@ -206,7 +206,7 @@ def state_with(**flags: Any) -> dict[str, Any]:
     input when every capture was taken, so the off state and the EQ side can
     only be reached by mutating what the device said.
     """
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     state.update(flags)
     return state
 
@@ -219,7 +219,7 @@ def state_without(*keys: str) -> dict[str, Any]:
     differently. No captured payload omits any of them, so the only way to
     stand up the silent case is to take one away.
     """
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     for key in keys:
         state.pop(key, None)
     return state

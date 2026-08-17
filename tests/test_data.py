@@ -34,7 +34,9 @@ def test_device_parses_from_getmodel() -> None:
 
 def test_playback_parses_cd_state() -> None:
     """A disc-loaded getState reads back as a CD with track metadata."""
-    playback = EversoloPlayback.from_state(fixture_json("getstate_cd.json"))
+    playback = EversoloPlayback.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
 
     assert playback.is_cd is True
     assert playback.extension == "cd"
@@ -95,7 +97,9 @@ def test_a_stale_disc_is_not_trusted_while_another_input_is_live() -> None:
 
 def test_a_disc_matching_the_live_input_is_trusted() -> None:
     """The counterpart to the above: matching input, disc data is read."""
-    playback = EversoloPlayback.from_state(fixture_json("getstate_cd.json"))
+    playback = EversoloPlayback.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
 
     assert playback.is_cd is True
     assert playback.title == "Rabbit in Your Headlights"
@@ -110,7 +114,7 @@ def test_a_disc_is_still_trusted_when_the_input_tag_is_unreported() -> None:
     real, live disc — it has said nothing. Blanking ``playingMusic`` on that
     silence would hide a genuine CD session rather than a stale one.
     """
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     del state["volumeData"]
 
     playback = EversoloPlayback.from_state(state)
@@ -201,7 +205,9 @@ def test_playback_without_media_has_no_format_label() -> None:
 
 def test_volume_parses_and_scales() -> None:
     """VolumeData parses into a 0..1 level and preserves the input tag."""
-    volume = EversoloVolume.from_state(fixture_json("getstate_cd.json"))
+    volume = EversoloVolume.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
 
     assert volume.current == 127
     assert volume.maximum == 200
@@ -212,7 +218,7 @@ def test_volume_parses_and_scales() -> None:
 
 def test_data_from_state_populates_live_slice() -> None:
     """EversoloData.from_state fills playback/volume/device from one getState."""
-    data = EversoloData.from_state(fixture_json("getstate_cd.json"))
+    data = EversoloData.from_state(fixture_json("getstate_spotify_disc_loaded.json"))
 
     assert data.playback is not None
     assert data.volume is not None
@@ -273,7 +279,9 @@ def test_toggles_merge_the_sub_pages_with_the_main_tree() -> None:
 
 def test_merge_publishes_inputs_and_toggles() -> None:
     """Entities read the parsed inputs and toggles, not the raw blobs."""
-    data = EversoloData.from_state(fixture_json("getstate_cd.json")).merge(
+    data = EversoloData.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    ).merge(
         settings={
             "input_output_state": fixture_json("getinputandoutputlist.json"),
             "system_settings": fixture_json("getsystemsettings.json"),
@@ -355,7 +363,7 @@ def test_the_live_input_name_comes_from_the_state_read() -> None:
     ``volumeData.intputTag`` against the input list instead.
     """
     settings = {"input_output_state": fixture_json("getinputandoutputlist.json")}
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     state["volumeData"]["intputTag"] = "EARC-EARC"
 
     data = EversoloData.from_state(state).merge(settings=settings)
@@ -372,7 +380,7 @@ def test_the_live_input_name_is_none_before_the_input_list_resolves() -> None:
     reading it, so the attribute is None rather than "XMOS" while the list
     that resolves it has not been read yet.
     """
-    data = EversoloData.from_state(fixture_json("getstate_cd.json"))
+    data = EversoloData.from_state(fixture_json("getstate_spotify_disc_loaded.json"))
 
     assert data.inputs.available == ()
     assert data.live_input_name is None
@@ -382,7 +390,7 @@ def test_the_live_input_name_is_none_before_the_input_list_resolves() -> None:
 def test_the_live_input_name_is_none_when_the_tag_is_not_in_the_list() -> None:
     """A live tag the resolved list does not recognise is also None, not itself."""
     settings = {"input_output_state": fixture_json("getinputandoutputlist.json")}
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     state["volumeData"]["intputTag"] = "NOTAREALINPUT-NOTAREALINPUT"
 
     data = EversoloData.from_state(state).merge(settings=settings)
@@ -414,7 +422,9 @@ def test_capabilities_detected_from_real_a8_tree() -> None:
 
 def test_processing_parses_the_dsp_and_eq_block() -> None:
     """The state read says which of the two sides exist, and whether each is on."""
-    processing = EversoloProcessing.from_state(fixture_json("getstate_cd.json"))
+    processing = EversoloProcessing.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
 
     assert processing.has_dsp is True
     assert processing.dsp_active is True
@@ -441,7 +451,7 @@ def test_processing_is_unknown_before_the_device_answers() -> None:
 
 def test_a_flag_the_device_omits_stays_unknown() -> None:
     """A payload missing the field is not the device saying it is off."""
-    state = fixture_json("getstate_cd.json")
+    state = fixture_json("getstate_spotify_disc_loaded.json")
     del state["dspActive"]
 
     processing = EversoloProcessing.from_state(state)
@@ -497,7 +507,9 @@ def test_a_later_reading_wins_where_both_answered() -> None:
 
 def test_the_moment_readings_are_not_accumulated() -> None:
     """``dsp_active`` describes now, so a remembered one would be a lie."""
-    earlier = EversoloProcessing.from_state(fixture_json("getstate_cd.json"))
+    earlier = EversoloProcessing.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
     assert earlier.dsp_active is True
     later = EversoloProcessing.from_state(state_with(dspActive=False))
 
@@ -515,7 +527,7 @@ def test_settling_the_gates_leaves_every_other_capability_alone() -> None:
     assert caps.has_cd is True
 
     settled = caps.with_processing(
-        EversoloProcessing.from_state(fixture_json("getstate_cd.json"))
+        EversoloProcessing.from_state(fixture_json("getstate_spotify_disc_loaded.json"))
     )
 
     assert settled.has_dsp is True
@@ -529,7 +541,9 @@ def test_capabilities_read_the_dsp_and_eq_gates_from_state() -> None:
     caps = EversoloCapabilities.detect(
         system_settings=fixture_json("getsystemsettings.json"),
         model=fixture_json("getmodel.json"),
-        processing=EversoloProcessing.from_state(fixture_json("getstate_cd.json")),
+        processing=EversoloProcessing.from_state(
+            fixture_json("getstate_spotify_disc_loaded.json")
+        ),
     )
 
     assert caps.has_dsp is True
@@ -584,7 +598,9 @@ def test_visualization_reads_both_display_flags() -> None:
     Both are ``0`` in every capture, which is the "neither" reading — see
     :class:`EversoloVisualization` for why ``0`` and ``-1`` are treated alike.
     """
-    visualization = EversoloVisualization.from_payload(fixture_json("getstate_cd.json"))
+    visualization = EversoloVisualization.from_payload(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
 
     assert visualization.vu_mode == 0
     assert visualization.spectrum_mode == 0
@@ -674,7 +690,7 @@ def test_screen_power_is_gated_on_the_tag_the_device_offers() -> None:
 
 def test_the_live_slice_carries_the_visualization() -> None:
     """The screen flags ride in getState, so they land on the live tier."""
-    data = EversoloData.from_state(fixture_json("getstate_cd.json"))
+    data = EversoloData.from_state(fixture_json("getstate_spotify_disc_loaded.json"))
 
     assert data.visualization.mode is EversoloVisualizationMode.OFF
 
