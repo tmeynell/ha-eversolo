@@ -1,4 +1,4 @@
 # Test harness for the mocked-HTTP seam. Pinned to the phcc release that bundles
 # homeassistant==2026.4.0 (matches requirements.txt), giving aioclient_mock,
 # the hass fixture, and enable_custom_integrations.
-pytest-homeassistant-custom-component==0.13.321
+pytest-homeassistant-custom-component==0.13.355
