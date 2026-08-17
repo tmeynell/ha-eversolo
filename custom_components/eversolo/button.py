@@ -1,9 +1,12 @@
-"""Button platform for eversolo — the two power actions.
+"""Button platform for eversolo — the three power actions.
 
-Both are gated on what the unit says it accepts (``ableRemoteReboot`` /
-``ableRemoteShutdown``). There is deliberately **no** power-on button: this
-unit reports ``ableRemoteSleep: false`` and sits on WiFi, so Wake-on-LAN is a
-beyond-MVP experiment rather than a control to ship.
+All three are gated on what the unit says it accepts (``ableRemoteReboot`` /
+``ableRemoteShutdown`` / ``ableRemoteBoot``). Power On sends a Wake-on-LAN
+magic packet rather than a device command — the app's only wake mechanism
+(see ``.wake_on_lan``) — which only became worth shipping once the unit moved
+to Ethernet and #10's F5 proved the packet actually wakes it; ``getModel``'s
+``ableRemoteSleep`` flag, which an earlier version of this docstring cited to
+rule Wake-on-LAN out, is about sleep, not boot, and was never the right gate.
 
 Nothing else is a button. The screen and its visualizations were five buttons
 in an earlier design, which could only step the screen blindly and never say
@@ -22,7 +25,6 @@ from homeassistant.components.button import (
 )
 from homeassistant.const import EntityCategory
 
-from .api import EversoloApiClient
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import EversoloCapabilities
 from .entity import EversoloEntity, async_add_capability_gated
@@ -38,7 +40,7 @@ class EversoloButtonDescription(ButtonEntityDescription):
     """
 
     is_supported: Callable[[EversoloCapabilities], bool]
-    press: Callable[[EversoloApiClient], Awaitable[None]]
+    press: Callable[[EversoloDataUpdateCoordinator], Awaitable[None]]
 
 
 ENTITY_DESCRIPTIONS: tuple[EversoloButtonDescription, ...] = (
@@ -48,7 +50,7 @@ ENTITY_DESCRIPTIONS: tuple[EversoloButtonDescription, ...] = (
         device_class=ButtonDeviceClass.RESTART,
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_reboot,
-        press=lambda client: client.async_trigger_reboot(),
+        press=lambda coordinator: coordinator.client.async_trigger_reboot(),
     ),
     EversoloButtonDescription(
         key="power_off",
@@ -56,7 +58,17 @@ ENTITY_DESCRIPTIONS: tuple[EversoloButtonDescription, ...] = (
         icon="mdi:power-off",
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_power_off,
-        press=lambda client: client.async_trigger_power_off(),
+        press=lambda coordinator: coordinator.client.async_trigger_power_off(),
+    ),
+    EversoloButtonDescription(
+        key="power_on",
+        translation_key="power_on",
+        icon="mdi:power-on",
+        entity_category=EntityCategory.CONFIG,
+        is_supported=lambda capabilities: capabilities.has_power_on,
+        # Wake-on-LAN, not a device command — the unit cannot answer an HTTP
+        # request while off, which is the one state this button is for.
+        press=lambda coordinator: coordinator.async_wake(),
     ),
 )
 
@@ -95,4 +107,4 @@ class EversoloButton(EversoloEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Send the action this button stands for."""
-        await self.entity_description.press(self.coordinator.client)
+        await self.entity_description.press(self.coordinator)

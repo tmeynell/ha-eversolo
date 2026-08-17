@@ -33,6 +33,7 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import (
@@ -40,6 +41,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
+from . import wake_on_lan
 from .api import (
     EversoloApiClient,
     EversoloApiClientError,
@@ -178,6 +180,24 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         watching for entities that are not justified *yet*.
         """
         return self._gates_settled
+
+    async def async_wake(self) -> None:
+        """Send the magic packet that is this unit's only power-on mechanism.
+
+        Targets ``self.device.net_mac`` rather than the config entry's own
+        ``unique_id`` — the two usually agree, since the entry is anchored to
+        exactly this field at setup (config_flow.py:65), but a legacy entry
+        that migrated while the device was offline can carry a ``None``
+        unique_id (``_async_read_unique_id`` in ``__init__.py`` is
+        best-effort). ``device.net_mac`` cannot be ``None`` here: it lands in
+        the same profile read that decides ``has_power_on``, capabilities are
+        never unpublished once set (``EversoloData.merge``), and every caller
+        of this method — the Power On button, the media player's ``turn_on``
+        — exists only because that read already succeeded.
+        """
+        await wake_on_lan.async_wake(
+            self.hass, self.config_entry.data[CONF_HOST], self.device.net_mac
+        )
 
     async def _async_update_data(self) -> EversoloData:
         """Run one live cycle, plus the slow tiers when they are due."""

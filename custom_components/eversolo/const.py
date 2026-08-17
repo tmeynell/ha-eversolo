@@ -43,6 +43,14 @@ INPUT_INTERNAL_PLAYER = "XMOS"
 # it is currently on.
 POWER_TAG_SCREEN = "screen"
 
+# Wake-on-LAN ports the unit answers a magic packet on. Port 9 is what #10's
+# F5 proved wakes this firmware in ~15 s; 9517 is what the vendor's own app
+# broadcasts to (``WakeThread.wakeOnLan``, the app's only wake mechanism —
+# there is no HTTP boot endpoint anywhere in it). Both cost one extra
+# datagram, so both are sent; see RESEARCH.md "Power-on is Wake-on-LAN, and
+# nothing else".
+WAKE_ON_LAN_PORTS = (9, 9517)
+
 # Tags in the getSystemSettings tree, which is where the device reports both
 # that a feature exists — its tag is absent on units without the hardware — and,
 # for a ``?switch=`` toggle, whether it is currently on.

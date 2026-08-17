@@ -25,6 +25,8 @@ from homeassistant.const import (
     SERVICE_MEDIA_PAUSE,
     SERVICE_MEDIA_PREVIOUS_TRACK,
     SERVICE_MEDIA_SEEK,
+    SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
     SERVICE_VOLUME_MUTE,
     SERVICE_VOLUME_SET,
     STATE_UNAVAILABLE,
@@ -33,13 +35,21 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
-from custom_components.eversolo.const import CD_SOURCE, SETTING_TAG_CD_AUTO_PLAY
+from custom_components.eversolo import wake_on_lan
+from custom_components.eversolo.const import (
+    CD_SOURCE,
+    SETTING_TAG_CD_AUTO_PLAY,
+    WAKE_ON_LAN_PORTS,
+)
 
 from .helpers import (
     GET_INPUT_OUTPUT,
+    GET_MODEL,
     GET_STATE,
     GET_SYSTEM_SETTINGS,
     SET_INPUT,
+    SET_POWER_OPTION,
+    UNIQUE_ID,
     advance_cycles,
     answers_with,
     calls_to,
@@ -296,11 +306,39 @@ async def test_transport_is_inert_on_the_tv_input(
     assert calls_to(aioclient_mock, SEEK_TO) == 0
 
 
-async def test_the_player_goes_unavailable_when_the_device_does(
+async def test_a_boot_capable_player_reads_off_rather_than_unavailable(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """The player is live-tier: losing getState takes it down, WoL or not."""
+    """The A8 reports ``ableRemoteBoot``, so losing getState reads as off.
+
+    Unavailable would make ``turn_on`` undispatchable in exactly the state it
+    exists for. Accepted cost, stated in ``media_player.py``: this makes a
+    network fault and a powered-down unit indistinguishable from the entity's
+    state alone.
+    """
     prime_device(aioclient_mock, _streaming())
+    entry = await setup_integration(hass)
+    entity_id = entity_id_for(hass, "_media_player")
+    assert hass.states.get(entity_id).state != STATE_UNAVAILABLE
+
+    aioclient_mock.clear_requests()
+    prime_device(aioclient_mock, {GET_STATE: {"exc": aiohttp.ClientError("offline")}})
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(entity_id).state == MediaPlayerState.OFF
+
+
+async def test_a_player_that_cannot_be_woken_still_goes_unavailable(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Without ``ableRemoteBoot``, ``turn_on`` could do nothing anyway.
+
+    So honest unavailability — the plain live-tier-outage rule — is kept.
+    """
+    model = fixture_json("getmodel.json")
+    model["ableRemoteBoot"] = False
+    prime_device(aioclient_mock, _streaming() | {GET_MODEL: {"json": model}})
     entry = await setup_integration(hass)
     entity_id = entity_id_for(hass, "_media_player")
     assert hass.states.get(entity_id).state != STATE_UNAVAILABLE
@@ -539,12 +577,59 @@ async def test_a_unit_without_a_cd_drive_is_offered_no_cd_source(
     assert hass.states.get(entity_id).attributes["source"] == "Internal player"
 
 
-async def test_the_player_offers_no_power_control(
+async def test_the_player_offers_power_control_matching_the_buttons(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """Power lives on the buttons (#06); the player never claims turn_on/off."""
+    """``turn_on``/``turn_off`` mirror the Power On/Off buttons' own gates."""
     entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    features = hass.states.get(entity_id).attributes[ATTR_SUPPORTED_FEATURES]
+    assert features & MediaPlayerEntityFeature.TURN_ON
+    assert features & MediaPlayerEntityFeature.TURN_OFF
+
+
+async def test_a_player_with_neither_power_flag_offers_no_power_control(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A unit that accepts neither command advertises neither feature."""
+    model = fixture_json("getmodel.json")
+    model["ableRemoteBoot"] = False
+    model["ableRemoteShutdown"] = False
+    entity_id = await _player(
+        hass, aioclient_mock, _streaming() | {GET_MODEL: {"json": model}}
+    )
 
     features = hass.states.get(entity_id).attributes[ATTR_SUPPORTED_FEATURES]
     assert not features & MediaPlayerEntityFeature.TURN_ON
     assert not features & MediaPlayerEntityFeature.TURN_OFF
+
+
+async def test_turn_on_sends_a_magic_packet_and_no_http_command(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``turn_on`` is Wake-on-LAN — there is no HTTP power-on endpoint to call."""
+    calls: list[tuple[str, str, int]] = []
+    monkeypatch.setattr(
+        wake_on_lan.wakeonlan,
+        "send_magic_packet",
+        lambda mac, *, ip_address, port: calls.append((mac, ip_address, port)),
+    )
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _call(hass, SERVICE_TURN_ON, entity_id)
+
+    assert calls == [(UNIQUE_ID, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+
+
+async def test_turn_off_sends_the_poweroff_command_and_updates_optimistically(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``turn_off`` is the same command the Power Off button sends."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _call(hass, SERVICE_TURN_OFF, entity_id)
+
+    assert query_of(aioclient_mock, SET_POWER_OPTION) == {"tag": "poweroff"}
+    assert hass.states.get(entity_id).state == MediaPlayerState.OFF

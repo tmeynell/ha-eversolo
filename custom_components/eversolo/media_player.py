@@ -2,8 +2,12 @@
 
 One entity per device: what is playing, the transport that drives it, and the
 volume. It reads the live tier only, so it goes unavailable the moment
-``getState`` stops answering. Power lives on the button platform; this entity
-deliberately offers no ``turn_on``/``turn_off``.
+``getState`` stops answering — unless the last known profile said the unit
+accepts Wake-on-LAN, in which case it reports ``off`` instead (see
+``available``/``state``): an unavailable entity cannot be sent ``turn_on``,
+which would make the whole point of that service decorative. ``turn_on`` and
+``turn_off`` mirror the Power On/Off buttons — same gates, same commands —
+rather than this entity owning either action itself.
 
 Two rules shape the code below:
 
@@ -139,9 +143,39 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
     # ------------------------------------------------------------------
 
     @property
+    def _can_wake(self) -> bool:
+        """Whether the last known profile said this unit accepts Wake-on-LAN.
+
+        Read off whatever capabilities were last published, which survives a
+        live-tier outage: capabilities latch once from the settings tier and
+        are not part of ``getState``. A unit that never claimed
+        ``ableRemoteBoot`` gets none of the behaviour below, and keeps honest
+        unavailability instead of a control that would do nothing.
+        """
+        capabilities = self.coordinator.data.capabilities
+        return capabilities is not None and capabilities.has_power_on
+
+    @property
+    def available(self) -> bool:
+        """True while the device answers, or it is off but can be woken.
+
+        HA will not dispatch a service call to an unavailable entity, so
+        without this a boot-capable unit's ``TURN_ON`` would be decorative —
+        it could never be off *and* available to receive it. **Accepted
+        cost**: a genuine network fault and a powered-down unit now both read
+        available (and, per ``state`` below, ``off``); this integration has no
+        way to tell the two apart short of a probe it does not attempt. That
+        is a deliberate reversal, for a unit that can actually be woken, of
+        the plain live-tier-outage-is-unavailable rule the original power
+        design chose.
+        """
+        return self.coordinator.last_update_success or self._can_wake
+
+    @property
     def supported_features(self) -> MediaPlayerEntityFeature:
         """Advertise only the controls this input actually responds to."""
         playback = self._playback
+        capabilities = self.coordinator.data.capabilities
         features = MediaPlayerEntityFeature(0)
 
         if self.source_list:
@@ -156,6 +190,10 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
             features |= MediaPlayerEntityFeature.PREVIOUS_TRACK
         if playback.can_seek:
             features |= MediaPlayerEntityFeature.SEEK
+        if self._can_wake:
+            features |= MediaPlayerEntityFeature.TURN_ON
+        if capabilities is not None and capabilities.has_power_off:
+            features |= MediaPlayerEntityFeature.TURN_OFF
 
         return features
 
@@ -169,7 +207,15 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         resume reads as paused. A track it cannot drive at all — the disc still
         reported while the unit sits on the TV input — is not "paused": nothing
         would resume it, so that reads as idle.
+
+        This is only ever reached while ``available`` — HA substitutes
+        "unavailable" itself otherwise — so a live-tier outage that gets here
+        at all is exactly the boot-capable case ``available`` carves out, and
+        reads as off rather than falling through to a guess built from data
+        that stopped being current the moment the device went quiet.
         """
+        if not self.coordinator.last_update_success:
+            return MediaPlayerState.OFF
         playback = self._playback
         if playback.is_playing:
             reported = MediaPlayerState.PLAYING
@@ -402,3 +448,22 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         else:
             await self.coordinator.client.async_unmute()
         self._expect(is_volume_muted=mute)
+
+    # ------------------------------------------------------------------
+    # Power. Mirrors the Power On/Off buttons: same gates, same commands.
+    # ------------------------------------------------------------------
+
+    async def async_turn_on(self) -> None:
+        """Wake the device — the same Wake-on-LAN the Power On button sends.
+
+        No guessed outcome follows: unlike an HTTP command, there is nothing
+        here to have failed loudly, and the state is already ``off`` — the
+        only way this is reachable — so there is no closer guess to show
+        while the unit boots.
+        """
+        await self.coordinator.async_wake()
+
+    async def async_turn_off(self) -> None:
+        """Power the device off — the same command the Power Off button sends."""
+        await self.coordinator.client.async_trigger_power_off()
+        self._expect(state=MediaPlayerState.OFF)

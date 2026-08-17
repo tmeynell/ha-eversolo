@@ -32,6 +32,7 @@ during setup.
 | Binary Sensor | DSP active           | Diagnostic: whether DSP is engaged **for the input in use** (see below)       |
 | Binary Sensor | EQ active            | Diagnostic: whether output EQ is engaged (only on units that have an EQ side) |
 | Button        | Power off            | Turns off device (only on units that report they accept it)                   |
+| Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it)  |
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
 | Number        | Knob brightness      | Knob brightness, 0–100% (only on units with a knob)                           |
 | Number        | Screen brightness    | Front display brightness, 0–100%                                              |
@@ -95,6 +96,19 @@ switch cannot notice; its next press will be one step out of phase. Screen
 brightness and Visualization have no such caveat — the device reports both, so
 they follow changes made on the unit.
 
+**Power is symmetric on units that report `ableRemoteBoot`.** The media
+player's `turn_on`/`turn_off` and the Power On/Off buttons drive the same two
+actions: `turn_on` broadcasts a Wake-on-LAN magic packet (the device's own,
+and only, wake mechanism — there is no power-on command over the API), and
+`turn_off` sends the same command the Power Off button does. Both buttons stay
+even though the media player now covers the same ground, so nothing loses its
+`unique_id`. On a boot-capable unit, the media player reads `off` rather than
+unavailable while the device is unreachable — an unavailable entity cannot be
+sent `turn_on`, which would make it useless for exactly the state it exists
+for — so a genuine network fault and a powered-down unit are indistinguishable
+from the entity's state alone. A unit that does not report `ableRemoteBoot`
+keeps honest unavailability and gets no Power On button.
+
 ## Requirements
 
 - **Home Assistant 2024.11.0 or newer.**
@@ -139,10 +153,6 @@ do — they are simply not in this release.
 for the input in use, and whether output EQ is active, and nothing more.
 Choosing or editing a DSP profile, editing PEQ bands, and running DRC room
 correction are not in this release.
-
-**No power-on.** The unit reports that it does not accept a remote sleep/wake
-command, so there is no `turn_on` on the media player; Power off and Reboot are
-buttons. Wake-on-LAN is not implemented.
 
 **No auto-discovery.** Setup is by IP address only.
 

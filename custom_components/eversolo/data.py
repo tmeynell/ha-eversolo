@@ -782,6 +782,7 @@ class EversoloCapabilities:
     has_output_routing: bool = False
     has_reboot: bool = False
     has_power_off: bool = False
+    has_power_on: bool = False
     has_knob: bool = False
     has_knob_color: bool = False
     has_dsp: bool = False
@@ -864,6 +865,10 @@ class EversoloCapabilities:
             has_output_routing=bool((input_output or {}).get("outputData")),
             has_reboot=bool(model.get("ableRemoteReboot", False)),
             has_power_off=bool(model.get("ableRemoteShutdown", False)),
+            # Not ``ableRemoteSleep``, which is about sleep rather than boot
+            # and reads false on this unit — ``ableRemoteBoot`` is the flag
+            # the vendor's own app gates its wake menu item on.
+            has_power_on=bool(model.get("ableRemoteBoot", False)),
             # "Knob present at all" — a superset of knob *colour* support. The A8
             # has no knob, so this list is empty; only the A6 populates it.
             has_knob=bool(knob_items),

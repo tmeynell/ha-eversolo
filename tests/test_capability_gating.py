@@ -224,6 +224,11 @@ GATES: tuple[Gate, ...] = (
         absent={GET_MODEL: {"json": _model_without("ableRemoteShutdown")}},
     ),
     Gate(
+        capability="has_power_on",
+        entities=(("button", "_power_on"),),
+        absent={GET_MODEL: {"json": _model_without("ableRemoteBoot")}},
+    ),
+    Gate(
         # Absent on the A8, so this row runs the other way round: the capture
         # is the negative case and the A6's knob has to be stood up.
         capability="has_knob",
@@ -288,6 +293,7 @@ A8_ENTITY_SET = {
     ("binary_sensor", "_dsp_active"),
     ("button", "_reboot"),
     ("button", "_power_off"),
+    ("button", "_power_on"),
     ("number", "_screen_brightness"),
     ("select", "_output_routing"),
     ("select", "_dac_filter"),
@@ -442,7 +448,9 @@ async def test_a_device_that_answers_nothing_optional_still_loads(
         {
             GET_SYSTEM_SETTINGS: {"json": tree},
             GET_MODEL: {
-                "json": _model_without("ableRemoteReboot", "ableRemoteShutdown")
+                "json": _model_without(
+                    "ableRemoteReboot", "ableRemoteShutdown", "ableRemoteBoot"
+                )
             },
             GET_POWER_OPTION: {"json": _power_option_without("screen")},
             GET_INPUT_OUTPUT: {"json": _input_output_without_outputs()},

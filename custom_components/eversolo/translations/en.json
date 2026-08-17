@@ -45,6 +45,9 @@
             "power_off": {
                 "name": "Power off"
             },
+            "power_on": {
+                "name": "Power on"
+            },
             "reboot": {
                 "name": "Reboot"
             }
