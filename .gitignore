@@ -1,0 +1,24 @@
+# artifacts
+__pycache__
+.pytest*
+*.egg-info
+*/build/*
+*/dist/*
+
+# built by .github/workflows/release.yml's zip step
+custom_components/eversolo/eversolo.zip
+
+
+# misc
+.coverage
+.vscode
+coverage.xml
+.DS_Store
+
+
+# Home Assistant configuration
+config/*
+!config/configuration.yaml
+
+# Virtual environment for dev
+.venv/

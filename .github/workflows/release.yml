@@ -1,0 +1,42 @@
+name: "Release"
+
+# Do not cut a release from this repository yet. All 18 of upstream's tags (0.1.0 … 0.9.1)
+# are on origin, HACS picks the newest release by version comparison, and this workflow
+# writes the release tag straight into manifest.json — so nothing published here would ever
+# be offered as an update while 0.9.1 exists. Releases begin at build #14's fresh,
+# tagless repo. Kept (not deleted) because the repo is going public later, at which point
+# this becomes real.
+
+on:
+  release:
+    types:
+      - "published"
+
+permissions: {}
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: write
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v6.0.2"
+
+      - name: "Adjust version number"
+        shell: "bash"
+        run: |
+          yq -i -o json '.version="${{ github.event.release.tag_name }}"' \
+            "${{ github.workspace }}/custom_components/eversolo/manifest.json"
+
+      - name: "ZIP the integration directory"
+        shell: "bash"
+        run: |
+          cd "${{ github.workspace }}/custom_components/eversolo"
+          zip eversolo.zip -r ./
+
+      - name: "Upload the ZIP file to the release"
+        uses: softprops/action-gh-release@v2.6.1
+        with:
+          files: ${{ github.workspace }}/custom_components/eversolo/eversolo.zip

@@ -1,0 +1,32 @@
+{
+  "status": 200,
+  "currentIndex": 0,
+  "url": "/SystemSettings/audioSettings/xlrOutputOption/setXlrOutputUpsampling?index=",
+  "data": [
+    {
+      "index": 0,
+      "title": "Off (Original)",
+      "itemDescription": "Maintains the original sample rate, preserving the source audio characteristics."
+    },
+    {
+      "index": 1,
+      "title": "2x (Standard)",
+      "itemDescription": "Improves basic smoothness for a more refined listening experience."
+    },
+    {
+      "index": 2,
+      "title": "4x (High Resolution)",
+      "itemDescription": "Enhances detail and clarity for a more transparent sound."
+    },
+    {
+      "index": 3,
+      "title": "8x (High Precision)",
+      "itemDescription": "Further improves resolution, delivering a more natural and detailed sound."
+    },
+    {
+      "index": 4,
+      "title": "16x (Ultimate)",
+      "itemDescription": "Maximum precision processing for a more analog-like and lifelike sound."
+    }
+  ]
+}

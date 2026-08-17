@@ -1,0 +1,81 @@
+{
+  "status": 200,
+  "currentIndex": 10,
+  "option": 5,
+  "isShowTitle": true,
+  "url": "/SystemSettings/displaySettings/setVUMode?index=",
+  "data": [
+    {
+      "index": 0,
+      "title": "VU meter 1",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default05.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 1,
+      "title": "VU meter 2",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default02.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 2,
+      "title": "VU meter 3",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default03.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 3,
+      "title": "VU meter 4",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default11.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 4,
+      "title": "VU meter 5",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default06.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 5,
+      "title": "VU meter 6",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default07.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 6,
+      "title": "VU meter 7",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default01.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 7,
+      "title": "VU meter 8",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default04.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 8,
+      "title": "VU meter 9",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default08.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 9,
+      "title": "VU meter 10",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default09.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 10,
+      "title": "VU meter 11",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default10.png",
+      "itemDescription": ""
+    },
+    {
+      "index": 11,
+      "title": "VU meter 12",
+      "icon": "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default12.png",
+      "itemDescription": ""
+    }
+  ]
+}
