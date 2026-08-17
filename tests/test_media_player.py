@@ -84,6 +84,11 @@ def _streaming() -> dict:
     return {GET_STATE: {"json": fixture_json("getstate_streaming.json")}}
 
 
+def _cd() -> dict:
+    """Override the seam with a genuine disc actually playing (playType 5)."""
+    return {GET_STATE: {"json": fixture_json("getstate_cd.json")}}
+
+
 async def _player(hass: HomeAssistant, aioclient_mock, overrides=None) -> str:
     """Set the integration up and return the media_player's entity_id."""
     prime_device(aioclient_mock, overrides)
@@ -127,18 +132,36 @@ async def test_now_playing_reflects_the_captured_state(
     )
 
 
-async def test_the_disc_is_shown_when_one_is_loaded(
+async def test_spotify_is_shown_despite_a_disc_in_the_tray(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """The CD capture surfaces the disc's own track, not the streaming one."""
+    """#02, the reported defect: a disc in the tray must not shadow Spotify.
+
+    The default fixture has Spotify Connect audible (``playType`` 6) with a
+    disc still sitting in the tray — ``extension == "cd"`` was always a proxy
+    for what is playing, and it lied here. ``playType`` is the real rule.
+    """
     entity_id = await _player(hass, aioclient_mock)
 
     state = hass.states.get(entity_id)
-    assert state.attributes["media_title"] == "Rabbit in Your Headlights"
-    assert state.attributes["media_artist"] == "UNKLE"
-    # The capture also has the network player loaded, whose cover belongs to a
-    # different record — a disc must never borrow it.
-    assert "i.scdn.co" not in entity_object(hass, entity_id).media_image_url
+    assert state.attributes["media_title"] == "Brother, Do You Know the Road?"
+    assert state.attributes["media_artist"] == "Hiss Golden Messenger"
+    # Spotify's own cover, already in hand — not the disc's, and not fetched
+    # by the disc's song id either.
+    assert entity_object(hass, entity_id).media_image_url == (
+        "https://i.scdn.co/image/ab67616d0000b2733c02bee9dcd95c0a58e2989e"
+    )
+
+
+async def test_a_genuine_disc_shows_its_own_track(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The CD capture (``playType`` 5) surfaces the disc's own track."""
+    entity_id = await _player(hass, aioclient_mock, _cd())
+
+    state = hass.states.get(entity_id)
+    assert state.attributes["media_title"] == "Ich bin ein Ausländer"
+    assert state.attributes["media_artist"] == "Pop Will Eat Itself"
 
 
 async def test_play_state_comes_from_playstatus_not_top_level_state(
@@ -433,12 +456,17 @@ async def test_now_playing_does_not_show_the_disc_while_the_tv_input_is_live(
 async def test_the_discs_cover_url_carries_the_params_the_device_needs(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """#22 F4: ``getImage`` 806s without ``musicType``/``type`` — both must be sent."""
-    entity_id = await _player(hass, aioclient_mock)
+    """#22 F4: ``getImage`` 806s without ``musicType``/``type`` — both must be sent.
+
+    Only a genuine disc (``playType`` 5) takes this path at all now (#02) — a
+    disc merely sitting in the tray while something else plays has no song id
+    to fetch by, since it is not what's audible.
+    """
+    entity_id = await _player(hass, aioclient_mock, _cd())
 
     url = entity_object(hass, entity_id).media_image_url
     assert url is not None
-    assert "id=-1253797704" in url
+    assert "id=128670077" in url
     assert "musicType=4" in url
     assert "type=4" in url
     assert "target=16" in url

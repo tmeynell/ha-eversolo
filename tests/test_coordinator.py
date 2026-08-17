@@ -47,7 +47,9 @@ async def test_both_tiers_land_in_runtime_data(
 
     data = entry.runtime_data.data
     assert isinstance(data, EversoloData)
-    assert data.playback.title == "Rabbit in Your Headlights"
+    # Default fixture is the Spotify-Connect-plus-disc-in-tray capture;
+    # playType (6, streaming) says Spotify is what is audible (#02).
+    assert data.playback.title == "Brother, Do You Know the Road?"
     assert data.settings["screen_brightness"] is not None
     assert data.settings["vu_mode_state"] is not None
     # getModel's identity is richer than the one getState carries, so it wins.

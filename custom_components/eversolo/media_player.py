@@ -254,16 +254,17 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
     def media_image_url(self) -> str | None:
         """Image url of current playing media.
 
-        Streaming services hand over an absolute URL; the internal player gives
-        a device-local path, or nothing at all, in which case the artwork has to
-        be asked for by song id. A loaded disc is the exception: the unit keeps
-        publishing the network player's icon alongside it, and that cover
-        belongs to a different record, so a CD only ever shows its own art.
+        ``EversoloPlayback.from_state`` already picked the block that
+        describes what is audible, by ``playType`` — a network source's
+        ``art_url`` is an absolute URL, the local player's is a device-local
+        path or nothing, and Bluetooth's is always nothing. Only the local
+        branch (nothing in hand) falls through to a song-id lookup; a
+        streaming or Bluetooth track has no disc song id to fetch.
         """
         playback = self._playback
         client = self.coordinator.client
 
-        if playback.art_url and not playback.is_cd:
+        if playback.art_url:
             if playback.art_url.startswith("http"):
                 return playback.art_url
             return client.create_image_url_by_path(playback.art_url)

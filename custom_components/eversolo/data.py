@@ -203,6 +203,7 @@ class EversoloPlayback:
         info = state.get("everSoloPlayInfo") or {}
         audio = info.get("everSoloPlayAudioInfo") or {}
         output = info.get("everSoloPlayOutputInfo") or {}
+        bt = info.get("everSoloBtInInfo") or {}
 
         # The device keeps ``playingMusic`` describing a loaded disc even
         # while a different input is live (#03) — it never clears the block
@@ -218,6 +219,12 @@ class EversoloPlayback:
         # said the disc is wrong, only that it has not said anything — that
         # is "unknown", not "no", so it leaves the block trusted rather than
         # blanking a real, live disc for want of a field to check it against.
+        #
+        # This guard alone cannot catch Spotify Connect playing through the
+        # same XMOS input a disc is sitting in (#02) — belt and braces below,
+        # not duplicates: this blanks ``extension`` (and, on a genuine local
+        # disc, everything the dispatch below reads from ``music``); the
+        # dispatch decides, from ``playType`` alone, which block is audible.
         raw_input_tag = (state.get("volumeData") or {}).get("intputTag")
         live_input = raw_input_tag.split("-")[0] if raw_input_tag else None
         if (
@@ -227,16 +234,49 @@ class EversoloPlayback:
         ):
             music = {}
 
+        # ``playType`` is the device's own declaration of which block is
+        # audible right now, mirrored from the app's own dispatch
+        # (``DeviceStateRefresher.setMedia``, all 10 DEX): 4 is Bluetooth, 5
+        # is the local player (including a spinning disc), anything else is
+        # a network source (Spotify Connect and friends). It rides both at
+        # top level and inside ``everSoloPlayInfo``, agreeing in every
+        # capture taken so far; the top-level one is read here since it
+        # needs no descent into a block that can itself be absent.
+        play_type = _as_int(state.get("playType"))
+        if play_type == 4:
+            # Already correct today via the intputTag guard above — this
+            # branch is defensive, not corrective. The dedicated block is
+            # read first, the streaming block as fallback (belt and braces).
+            # No cover: A2DP/AVRCP carries none, and the capture's own
+            # ``icon`` is empty. ``connectBTName`` is deliberately not read
+            # as a title fallback (Phase 2) — it came back empty on the one
+            # capture taken while something was playing.
+            source_title = _first(bt.get("audioTitle"), audio.get("songName"))
+            source_artist = _first(bt.get("audioArtist"), audio.get("artistName"))
+            source_album = _first(bt.get("audioAlbum"), audio.get("albumName"))
+            source_art = None
+        elif play_type == 5:
+            source_title = music.get("title")
+            source_artist = music.get("artist")
+            source_album = music.get("album")
+            source_art = music.get("albumArt")
+        else:
+            source_title = audio.get("songName")
+            source_artist = audio.get("artistName")
+            source_album = audio.get("albumName")
+            source_art = info.get("icon")
+
         return cls(
-            title=_first(music.get("title"), audio.get("songName")),
-            artist=_first(music.get("artist"), audio.get("artistName")),
-            album=_first(music.get("album"), audio.get("albumName")),
+            title=_first(source_title),
+            artist=_first(source_artist),
+            album=_first(source_album),
             extension=music.get("extension"),
-            art_url=_first(
-                info.get("icon"), music.get("albumArt"), audio.get("albumUrl")
-            ),
-            song_id=_as_int(music.get("id")),
-            music_type=_as_int(music.get("type")),
+            art_url=_first(source_art),
+            # Only the local branch's song id means anything as a cover
+            # lookup key — using it for a streaming or Bluetooth track would
+            # fetch the disc's art for a track that never came off the disc.
+            song_id=_as_int(music.get("id")) if play_type == 5 else None,
+            music_type=_as_int(music.get("type")) if play_type == 5 else None,
             play_status=_as_int(info.get("playStatus")),
             position=_first(
                 _as_int(info.get("currentPosition")), _as_int(state.get("position"))

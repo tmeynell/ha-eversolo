@@ -50,8 +50,11 @@ async def test_seam_getstate_typed_parse(
 
     data = await _client(hass).async_read_state()
 
+    # is_cd still honestly answers "is a disc loaded" — the disc really is in
+    # the tray in this capture (#01/#02). ``title`` is the audible source,
+    # which ``playType`` (6, streaming) says is Spotify Connect, not the disc.
     assert data.playback.is_cd is True
-    assert data.playback.title == "Rabbit in Your Headlights"
+    assert data.playback.title == "Brother, Do You Know the Road?"
     assert data.volume.current == 127
     assert data.device.model == "DMP-A8 Gen 2"
 

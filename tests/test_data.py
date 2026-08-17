@@ -32,19 +32,56 @@ def test_device_parses_from_getmodel() -> None:
     assert device.android_version == "14"
 
 
-def test_playback_parses_cd_state() -> None:
-    """A disc-loaded getState reads back as a CD with track metadata."""
+def test_playback_parses_spotify_disc_loaded_state() -> None:
+    """Disc in the tray, Spotify Connect audible: playType (6) picks Spotify.
+
+    ``is_cd`` still honestly answers "is a disc loaded" (true) — #02 is about
+    which block describes what is *audible*, a separate question.
+    """
     playback = EversoloPlayback.from_state(
         fixture_json("getstate_spotify_disc_loaded.json")
     )
 
     assert playback.is_cd is True
     assert playback.extension == "cd"
-    assert playback.title == "Rabbit in Your Headlights"
-    assert playback.artist == "UNKLE"
+    assert playback.title == "Brother, Do You Know the Road?"
+    assert playback.artist == "Hiss Golden Messenger"
+    assert playback.art_url == (
+        "https://i.scdn.co/image/ab67616d0000b2733c02bee9dcd95c0a58e2989e"
+    )
     assert playback.is_playing is True
     assert playback.duration == 369686
     assert playback.can_seek is True
+
+
+def test_playback_parses_a_genuine_cd_state() -> None:
+    """A disc actually playing (playType 5) reads its own title/artist."""
+    playback = EversoloPlayback.from_state(fixture_json("getstate_cd.json"))
+
+    assert playback.is_cd is True
+    assert playback.title == "Ich bin ein Ausländer"
+    assert playback.artist == "Pop Will Eat Itself"
+    # No albumArt in the capture, so art falls to the song-id lookup.
+    assert playback.art_url is None
+    assert playback.song_id == 128670077
+    assert playback.music_type == 4
+
+
+def test_playback_parses_bluetooth_state() -> None:
+    """Bluetooth (playType 4) reads its own block, streaming block as fallback.
+
+    Already correct today via the intputTag guard — this is the defensive
+    fixture test #02 asks for, pinning the current-correct output.
+    """
+    playback = EversoloPlayback.from_state(fixture_json("getstate_bluetooth.json"))
+
+    assert playback.is_cd is False
+    assert playback.title == "Nifanyeje"
+    assert playback.artist == "Andy Compton"
+    assert playback.album == " The Rurals"
+    # A2DP/AVRCP carries no cover, and the capture's own icon is empty.
+    assert playback.art_url is None
+    assert playback.codec == "AAC"
 
 
 def test_playback_parses_streaming_state() -> None:
@@ -96,14 +133,21 @@ def test_a_stale_disc_is_not_trusted_while_another_input_is_live() -> None:
 
 
 def test_a_disc_matching_the_live_input_is_trusted() -> None:
-    """The counterpart to the above: matching input, disc data is read."""
+    """The counterpart to the above: matching input, disc data is read.
+
+    ``title`` is deliberately not asserted here — with the input matching,
+    ``playType`` (#02) is what decides which block is audible, independently
+    of this guard; see ``test_playback_parses_spotify_disc_loaded_state``.
+    ``music_type`` is play-type-gated too (only meaningful for the song-id
+    cover lookup, which only the local branch takes), so it is not asserted
+    here either — this test's job is the guard, not the dispatch.
+    """
     playback = EversoloPlayback.from_state(
         fixture_json("getstate_spotify_disc_loaded.json")
     )
 
     assert playback.is_cd is True
-    assert playback.title == "Rabbit in Your Headlights"
-    assert playback.music_type == 4
+    assert playback.extension == "cd"
     assert playback.bitrate == "1.41 Mbps"
 
 
@@ -120,7 +164,7 @@ def test_a_disc_is_still_trusted_when_the_input_tag_is_unreported() -> None:
     playback = EversoloPlayback.from_state(state)
 
     assert playback.is_cd is True
-    assert playback.title == "Rabbit in Your Headlights"
+    assert playback.extension == "cd"
 
 
 def test_format_reads_the_live_output_not_a_stale_disc() -> None:
