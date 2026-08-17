@@ -937,14 +937,21 @@ class EversoloData:
         describes the new one. The tag ``getState`` carries in the same payload
         is the one that moves in step.
 
-        Falls back to the tag itself while the input list is unread, so it
-        names *something* rather than going blank.
+        ``None`` whenever the live tag cannot be resolved to a label —
+        including on the very first cycle, before the settings tier has ever
+        read the input list. This is read as a machine-readable attribute as
+        well as a display string, so it deliberately does **not** fall back to
+        the bare device tag (``"XMOS"``): that would read as an authoritative
+        label to a template while actually meaning "not resolved yet", and the
+        two are indistinguishable once printed. A consumer that gets a value
+        back can trust it is the resolved label; one that gets ``None`` knows
+        to wait rather than match on something that merely looks right.
         """
         tag = self.volume.selected_input_tag
         if tag is None:
             return None
         entry = self.inputs.by_tag(tag)
-        return entry.name if entry else tag
+        return entry.name if entry else None
 
     @classmethod
     def from_state(cls, state: Mapping[str, Any]) -> EversoloData:

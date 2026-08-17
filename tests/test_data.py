@@ -365,13 +365,29 @@ def test_the_live_input_name_comes_from_the_state_read() -> None:
     assert data.live_input_name == "TV"
 
 
-def test_the_live_input_name_falls_back_to_the_bare_tag() -> None:
-    """Before the input list is read there is no label, but there is a tag."""
+def test_the_live_input_name_is_none_before_the_input_list_resolves() -> None:
+    """Before the input list is read there is no label — and no raw tag either.
+
+    A raw device tag would look exactly like a resolved label to anything
+    reading it, so the attribute is None rather than "XMOS" while the list
+    that resolves it has not been read yet.
+    """
     data = EversoloData.from_state(fixture_json("getstate_cd.json"))
 
     assert data.inputs.available == ()
-    assert data.live_input_name == "XMOS"
+    assert data.live_input_name is None
     assert EversoloData().live_input_name is None
+
+
+def test_the_live_input_name_is_none_when_the_tag_is_not_in_the_list() -> None:
+    """A live tag the resolved list does not recognise is also None, not itself."""
+    settings = {"input_output_state": fixture_json("getinputandoutputlist.json")}
+    state = fixture_json("getstate_cd.json")
+    state["volumeData"]["intputTag"] = "NOTAREALINPUT-NOTAREALINPUT"
+
+    data = EversoloData.from_state(state).merge(settings=settings)
+
+    assert data.live_input_name is None
 
 
 def test_capabilities_detected_from_real_a8_tree() -> None:

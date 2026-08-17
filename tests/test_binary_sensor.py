@@ -16,14 +16,19 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMocker,
+    AiohttpClientMockResponse,
+)
 
 from custom_components.eversolo.const import SETTINGS_REFRESH_CYCLES
 
 from .helpers import (
+    GET_INPUT_OUTPUT,
     GET_STATE,
     advance_cycles,
     entity_id_for,
+    fixture_json,
     prime_device,
     setup_integration,
     state_with,
@@ -100,6 +105,45 @@ async def test_the_reading_follows_the_selected_input(
     assert state.state == STATE_OFF
     # The settings tier has not been re-read, so this is the live tag talking.
     assert state.attributes["input"] == "TV"
+
+
+async def test_the_input_attribute_is_absent_while_the_input_list_has_not_loaded(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#21: ``getInputAndOutputList`` timing out must not surface a raw tag.
+
+    ``getInputAndOutputList`` is read twice on the first cycle: once inside
+    the one-shot profile read (it feeds ``has_output_routing``), and again by
+    the settings tier's own ``input_output_state`` fetch, which is what
+    ``live_input_name`` actually resolves against. This makes only the
+    *second* call fail — the profile read still succeeds, so identity and
+    capabilities land and the sensor is created with a correct DSP reading
+    from the first cycle, exactly as #21 describes. Only the input list
+    itself is missing, which used to surface as ``input: "XMOS"`` —
+    indistinguishable from a genuine label — for up to
+    ``SETTINGS_REFRESH_CYCLES`` polls. It must now be absent instead, and the
+    DSP reading itself must not be delayed or suppressed by the failing
+    settings-tier call.
+    """
+    calls = {"count": 0}
+
+    async def _first_call_only(method, url, data):
+        calls["count"] += 1
+        if calls["count"] > 1:
+            raise aiohttp.ClientError("offline")
+        return AiohttpClientMockResponse(
+            method, url, json=fixture_json("getinputandoutputlist.json")
+        )
+
+    prime_device(aioclient_mock, {GET_INPUT_OUTPUT: {"side_effect": _first_call_only}})
+    await setup_integration(hass)
+
+    state = hass.states.get(entity_id_for(hass, "_dsp_active"))
+    # The live tier is unaffected by the settings-tier failure.
+    assert state.state == STATE_ON
+    # But the input list itself never landed, so there is no label to
+    # publish — and, critically, no raw device tag standing in for one.
+    assert "input" not in state.attributes
 
 
 async def test_a_unit_without_the_dsp_side_never_gets_the_sensor(

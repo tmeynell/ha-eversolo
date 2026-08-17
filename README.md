@@ -76,7 +76,11 @@ offers option labels the device itself supplies, and those are used as-is.
 separate profile assignment and enable flag for each of its four inputs, and
 reports the one belonging to whichever input is selected — so changing source
 can flip this sensor with nothing else having changed. The sensor's `input`
-attribute names the input its current reading is about. **EQ active** is the
+attribute names the input its current reading is about. **The attribute is
+absent, not a raw device code, for the first few polls after startup** while
+that name is still resolving — a template can treat a missing `input` as "not
+known yet" and never has to recognize a raw code standing in for the label.
+**EQ active** is the
 same reading for the parallel EQ feature, which applies to the digital
 _outputs_ instead; units without an EQ side (including the DMP-A8 Gen 2) get no
 EQ entity at all. Both are read-only.

@@ -52,7 +52,14 @@ ENTITY_DESCRIPTIONS: tuple[EversoloBinarySensorDescription, ...] = (
         # as a global "DSP is on" will call correct behaviour a bug the first
         # time changing source flips it. Both come off the same payload, so
         # the input named is the one the reading is about.
-        attributes=lambda data: {"input": data.live_input_name},
+        #
+        # Omitted entirely — not published as None — while the input list has
+        # not yet resolved the live tag to a label (typically only the first
+        # settings cycle after startup). A raw device tag is never substituted
+        # for the label: see EversoloData.live_input_name for why.
+        attributes=lambda data: (
+            {"input": data.live_input_name} if data.live_input_name is not None else {}
+        ),
     ),
     EversoloBinarySensorDescription(
         key="eq_active",
