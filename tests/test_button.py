@@ -23,6 +23,7 @@ from custom_components.eversolo.const import (
     WAKE_ON_LAN_PORTS,
 )
 
+
 from .helpers import (
     GET_MODEL,
     GET_STATE,
@@ -38,6 +39,10 @@ from .helpers import (
 )
 
 BUTTON_DOMAIN = "button"
+
+
+async def _no_op_sleep(_delay: float) -> None:
+    """Skip the real retry gap — see wake_on_lan.py's module docstring."""
 
 
 def _button_ids(hass: HomeAssistant, key: str) -> list[str]:
@@ -97,19 +102,25 @@ async def test_power_on_sends_a_magic_packet_to_the_entrys_mac(
     aioclient_mock: AiohttpClientMocker,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Power On is Wake-on-LAN, not a device command — the unit is off."""
+    """Power On is Wake-on-LAN, not a device command — the unit is off.
+
+    Sent twice, see wake_on_lan.py's module docstring — a single send can
+    silently miss the unit's post-power-off settling window.
+    """
     calls: list[tuple[str, str, int]] = []
     monkeypatch.setattr(
         wake_on_lan.wakeonlan,
         "send_magic_packet",
         lambda mac, *, ip_address, port: calls.append((mac, ip_address, port)),
     )
+    monkeypatch.setattr(wake_on_lan.asyncio, "sleep", _no_op_sleep)
     prime_device(aioclient_mock)
     await setup_integration(hass)
 
     await _press(hass, entity_id_for(hass, "_power_on"))
 
-    assert calls == [(UNIQUE_ID, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    one_round = [(UNIQUE_ID, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    assert calls == one_round + one_round
 
 
 async def test_power_on_still_works_when_the_entry_has_no_unique_id(
@@ -130,6 +141,7 @@ async def test_power_on_still_works_when_the_entry_has_no_unique_id(
         "send_magic_packet",
         lambda mac, *, ip_address, port: calls.append((mac, ip_address, port)),
     )
+    monkeypatch.setattr(wake_on_lan.asyncio, "sleep", _no_op_sleep)
     prime_device(aioclient_mock)
     entry = MockConfigEntry(
         domain=DOMAIN, version=3, data={CONF_HOST: HOST}, unique_id=None
@@ -141,7 +153,8 @@ async def test_power_on_still_works_when_the_entry_has_no_unique_id(
 
     await _press(hass, entity_id_for(hass, "_power_on"))
 
-    assert calls == [(UNIQUE_ID, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    one_round = [(UNIQUE_ID, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    assert calls == one_round + one_round
 
 
 async def test_reboot_is_a_restart_button(

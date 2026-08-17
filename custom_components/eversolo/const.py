@@ -51,6 +51,14 @@ POWER_TAG_SCREEN = "screen"
 # nothing else".
 WAKE_ON_LAN_PORTS = (9, 9517)
 
+# Gap before the retry send. Live-tested 2026-08-18 (RESEARCH.md, "A single WoL
+# magic packet can silently fail; the integration doesn't retry"): sends timed
+# at a ~15-16 s gap since power-off went unanswered every time, sends at 30 s+
+# woke the unit every time — the unit's NIC isn't listening for a magic packet
+# immediately after the soft-off command, not random packet loss. 20 s clears
+# every observed failure with margin.
+WAKE_ON_LAN_RETRY_DELAY = 20
+
 # Tags in the getSystemSettings tree, which is where the device reports both
 # that a feature exists — its tag is absent on units without the hardware — and,
 # for a ``?switch=`` toggle, whether it is currently on.

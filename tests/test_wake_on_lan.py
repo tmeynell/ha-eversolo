@@ -6,7 +6,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.eversolo import wake_on_lan
-from custom_components.eversolo.const import WAKE_ON_LAN_PORTS
+from custom_components.eversolo.const import WAKE_ON_LAN_PORTS, WAKE_ON_LAN_RETRY_DELAY
 
 MAC = "aa:bb:cc:00:00:01"
 
@@ -30,17 +30,31 @@ def test_subnet_broadcast_falls_back_to_global_for_a_hostname() -> None:
     assert wake_on_lan._subnet_broadcast("eversolo.local") == "255.255.255.255"
 
 
-async def test_async_wake_sends_a_magic_packet_to_every_port(
+async def test_async_wake_sends_a_magic_packet_to_every_port_twice(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Both ports, the subnet broadcast, and the given MAC — nothing else."""
+    """Both ports, the subnet broadcast, the given MAC — sent twice, nothing else.
+
+    A single send can silently miss the unit's settling window after
+    power-off (RESEARCH.md, "A single WoL magic packet can silently fail; the
+    integration doesn't retry"), so this sends once immediately and once more
+    after the retry delay.
+    """
     calls: list[tuple[str, str, int]] = []
     monkeypatch.setattr(
         wake_on_lan.wakeonlan,
         "send_magic_packet",
         lambda mac, *, ip_address, port: calls.append((mac, ip_address, port)),
     )
+    sleeps: list[float] = []
+
+    async def _fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(wake_on_lan.asyncio, "sleep", _fake_sleep)
 
     await wake_on_lan.async_wake(hass, "192.168.0.63", MAC)
 
-    assert calls == [(MAC, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    one_round = [(MAC, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    assert calls == one_round + one_round
+    assert sleeps == [WAKE_ON_LAN_RETRY_DELAY]

@@ -12,17 +12,27 @@ to delegate to — that component only registers a ``ServiceCall`` handler, and
 does the real work with the **``wakeonlan`` PyPI package**, exactly as
 ``wakeonlan`` is called directly here, in an executor job since it builds and
 sends on a real (blocking) socket.
+
+A single send can silently fail: live-tested 2026-08-18 (RESEARCH.md, "A
+single WoL magic packet can silently fail; the integration doesn't retry"),
+a send timed within ~15-16 s of the power-off command went unanswered every
+time, while one at 30 s+ woke the unit every time — the NIC isn't listening
+for a magic packet immediately after soft-off. So this sends once immediately
+(the common case: the unit has been off for a while) and once more after
+:data:`.const.WAKE_ON_LAN_RETRY_DELAY` (the edge case: woken right after being
+switched off) rather than trusting a single send.
 """
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 
 import wakeonlan
 
 from homeassistant.core import HomeAssistant
 
-from .const import WAKE_ON_LAN_PORTS
+from .const import WAKE_ON_LAN_PORTS, WAKE_ON_LAN_RETRY_DELAY
 
 
 def _subnet_broadcast(host: str) -> str:
@@ -43,11 +53,17 @@ def _subnet_broadcast(host: str) -> str:
 
 
 async def async_wake(hass: HomeAssistant, host: str, mac: str) -> None:
-    """Broadcast a magic packet for `mac`, on every port the unit answers on."""
+    """Broadcast a magic packet for `mac`, on every port, twice.
+
+    Once now, once after :data:`.const.WAKE_ON_LAN_RETRY_DELAY` — see the
+    module docstring for why a single send isn't trusted.
+    """
     broadcast = _subnet_broadcast(host)
 
     def _send() -> None:
         for port in WAKE_ON_LAN_PORTS:
             wakeonlan.send_magic_packet(mac, ip_address=broadcast, port=port)
 
+    await hass.async_add_executor_job(_send)
+    await asyncio.sleep(WAKE_ON_LAN_RETRY_DELAY)
     await hass.async_add_executor_job(_send)

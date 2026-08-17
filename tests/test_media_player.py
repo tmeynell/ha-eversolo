@@ -652,18 +652,28 @@ async def test_turn_on_sends_a_magic_packet_and_no_http_command(
     aioclient_mock: AiohttpClientMocker,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``turn_on`` is Wake-on-LAN — there is no HTTP power-on endpoint to call."""
+    """``turn_on`` is Wake-on-LAN — there is no HTTP power-on endpoint to call.
+
+    Sent twice, see wake_on_lan.py's module docstring — a single send can
+    silently miss the unit's post-power-off settling window.
+    """
     calls: list[tuple[str, str, int]] = []
     monkeypatch.setattr(
         wake_on_lan.wakeonlan,
         "send_magic_packet",
         lambda mac, *, ip_address, port: calls.append((mac, ip_address, port)),
     )
+
+    async def _no_op_sleep(_delay: float) -> None:
+        pass
+
+    monkeypatch.setattr(wake_on_lan.asyncio, "sleep", _no_op_sleep)
     entity_id = await _player(hass, aioclient_mock, _streaming())
 
     await _call(hass, SERVICE_TURN_ON, entity_id)
 
-    assert calls == [(UNIQUE_ID, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    one_round = [(UNIQUE_ID, "192.168.0.255", port) for port in WAKE_ON_LAN_PORTS]
+    assert calls == one_round + one_round
 
 
 async def test_turn_off_sends_the_poweroff_command_and_updates_optimistically(
