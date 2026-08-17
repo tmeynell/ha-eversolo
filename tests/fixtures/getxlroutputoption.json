@@ -1,0 +1,115 @@
+{
+  "status": 200,
+  "items": [
+    {
+      "title": "DAC filter characteristics",
+      "icon": "",
+      "option": 1,
+      "tag": "SettingsItemTagXLROutputDacFilter",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/getXlrOutputPcmFilterList",
+      "itemDescription": "Before the DAC chip converts a PCM digital signal into an analog signal, oversampling and digital filtering are required. The purpose of the digital filter is to remove baseband image frequencies while minimizing distortion to the original audio signal. Different filter types have distinct characteristics in high-frequency attenuation, phase response, and transient performance, allowing users to choose according to their listening preferences.",
+      "selectTitle": "Short Delay Sharp Roll-off"
+    },
+    {
+      "title": "Upsampling",
+      "icon": "",
+      "option": 1,
+      "tag": "SettingsItemTagXlrRcacUpSampling",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/getXlrOutputUpSamplingList",
+      "itemDescription": "Increases the audio sample rate for a smoother, more natural sound with richer detail. Effective only for PCM audio data.",
+      "selectTitle": "Off (Original)"
+    },
+    {
+      "title": "Startup volume",
+      "icon": "",
+      "option": 1,
+      "tag": "SettingsItemTagXLROutputBootVolume",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/getAnalogOutputBootVolumeList",
+      "itemDescription": "",
+      "selectTitle": "Default"
+    },
+    {
+      "title": "Volume step",
+      "icon": "",
+      "option": 1,
+      "tag": "SettingsItemTagXLROutputStupVolume",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/getXlrOutputStupVolumeList",
+      "itemDescription": "Adjusts the volume step size, controlling the amount of change when rotating the volume knob. 0.5 dB provides the finest adjustment, 1 dB is standard precision, and 2 dB or 3 dB allows faster adjustments.",
+      "selectTitle": "1 dB"
+    },
+    {
+      "title": "Volume protection",
+      "icon": "",
+      "option": 7,
+      "tag": "SettingsItemTagXlrRcaVolumeSafe",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/setXlrRcaVolumeSafe?index=",
+      "startTitle": "-80 dB",
+      "endTitle": "-20 dB",
+      "currentTitle": "-20 dB",
+      "currentProgress": 60,
+      "maxProgress": 60,
+      "itemDescription": "",
+      "selectTitle": "-20 dB",
+      "itemSettings": {
+        "title": "",
+        "icon": "",
+        "option": 0,
+        "tag": "SettingsItemTagXlrRcaVolumeSafeEnable",
+        "isShowTips": "",
+        "contentTips": "",
+        "url": "/SystemSettings/audioSettings/xlrOutputOption/setEnableXlrRcaVolumeSafe?switch=",
+        "switchStatus": true,
+        "isLastList": false,
+        "itemDescription": ""
+      }
+    },
+    {
+      "title": "Volume limit",
+      "icon": "",
+      "option": 7,
+      "tag": "SettingsItemTagXlrRcaVolumeLimit",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/setXlrRcaVolumeLimit?index=",
+      "startTitle": "-80 dB",
+      "endTitle": "0 dB",
+      "currentTitle": "0 dB",
+      "currentProgress": 80,
+      "maxProgress": 80,
+      "itemDescription": "",
+      "selectTitle": "0 dB"
+    },
+    {
+      "title": "Volume passthrough mode",
+      "icon": "",
+      "option": 0,
+      "tag": "SettingsItemTagXLRRCAVolumePassthrough",
+      "isSwitchOpenHint": true,
+      "contentTips": "The system will output the maximum volume and cannot be adjusted.\n Are you sure you want to turn it on?",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/setXLRRCAVolumPassthrough?switch=",
+      "switchStatus": false,
+      "itemDescription": "The maximum output volume of the system cannot be adjusted"
+    },
+    {
+      "title": "XLR port polarity",
+      "icon": "",
+      "option": 5,
+      "tag": "SettingsItemTagXlrDacPolar",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/getXlrDacPolarList",
+      "selectTitle": "Forward",
+      "itemDescription": "The polarity setting of the XLR interface is used to match the phase conventions of different devices, ensuring phase consistency throughout the audio system. The normal setting keeps the standard configuration of pin 2 positive and pin 3 negative, while the inverted setting swaps pins 2 and 3. If sound imaging becomes unclear or bass sounds muddy, switching the polarity may help."
+    },
+    {
+      "title": "Fade In/Out",
+      "icon": "",
+      "option": 7,
+      "tag": "SettingsItemTagXlrRcaFadeDelay",
+      "url": "/SystemSettings/audioSettings/xlrOutputOption/setXlrRcaFadeDelay?index=",
+      "startTitle": "0 ms",
+      "endTitle": "1000 ms",
+      "currentTitle": "489 ms",
+      "currentProgress": 489,
+      "maxProgress": 1000,
+      "itemDescription": "Set the volume transition time at the beginning and end of playback for a smoother and more natural listening experience.",
+      "selectTitle": "489 ms"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+---
+name: "Bug report"
+description: "Report a bug with the Eversolo DMP-A8 integration"
+labels: "Bug"
+body:
+- type: markdown
+  attributes:
+    value: Before you open a new issue, search through the existing issues to see if others have had the same problem.
+- type: input
+  attributes:
+    label: "Device and firmware"
+    description: "Model (e.g. DMP-A8 Gen 2) and firmware version, from the device's About screen."
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: "Describe the issue"
+    description: "A clear and concise description of what the issue is."
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Reproduction steps
+    description: "Without steps to reproduce, it will be hard to fix, it is very important that you fill out this part, issues without it will be closed"
+    value: |
+      1.
+      2.
+      3.
+      ...
+  validations:
+    required: true

@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "currentValue": 30,
+  "maxValue": 255,
+  "minValue": 0,
+  "url": "/SystemSettings/displaySettings/setScreenBrightness?index="
+}

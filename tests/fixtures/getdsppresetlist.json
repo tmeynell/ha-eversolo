@@ -1,0 +1,97 @@
+{
+  "status": 200,
+  "list": [
+    {
+      "id": 0,
+      "name": "Flat"
+    },
+    {
+      "id": 1,
+      "name": "Pop"
+    },
+    {
+      "id": 2,
+      "name": "Dance"
+    },
+    {
+      "id": 3,
+      "name": "Blues"
+    },
+    {
+      "id": 4,
+      "name": "Classical"
+    },
+    {
+      "id": 5,
+      "name": "Jazz"
+    },
+    {
+      "id": 6,
+      "name": "Slow song"
+    },
+    {
+      "id": 7,
+      "name": "Electronic music"
+    },
+    {
+      "id": 8,
+      "name": "Rock"
+    },
+    {
+      "id": 9,
+      "name": "Country"
+    },
+    {
+      "id": 10,
+      "name": "Vocals"
+    },
+    {
+      "id": 11,
+      "name": "Acoustic"
+    },
+    {
+      "id": 12,
+      "name": "Deep"
+    },
+    {
+      "id": 13,
+      "name": "Game"
+    },
+    {
+      "id": 14,
+      "name": "Hip-Hop"
+    },
+    {
+      "id": 15,
+      "name": "Latin"
+    },
+    {
+      "id": 16,
+      "name": "Loudness"
+    },
+    {
+      "id": 17,
+      "name": "Lounge"
+    },
+    {
+      "id": 18,
+      "name": "Piano"
+    },
+    {
+      "id": 19,
+      "name": "Bass Booster"
+    },
+    {
+      "id": 20,
+      "name": "Bass Reducer"
+    },
+    {
+      "id": 21,
+      "name": "Treble Booster"
+    },
+    {
+      "id": 22,
+      "name": "Treble Reducer"
+    }
+  ]
+}

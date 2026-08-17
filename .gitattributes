@@ -1,0 +1,3 @@
+# Normalize line endings to LF regardless of a contributor's platform (this repo is developed
+# from Windows via a Linux devcontainer/WSL).
+* text=auto eol=lf

@@ -1,0 +1,114 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Add an Eversolo streamer",
+                "description": "Enter the IP address or hostname of the Eversolo device. It is contacted on port 9529 and needs no username or password.",
+                "data": {
+                    "host": "Host"
+                },
+                "data_description": {
+                    "host": "The address of the streamer on your network, for example 192.168.0.60. Give it a fixed address, or a DHCP reservation, so it does not move."
+                }
+            },
+            "reconfigure": {
+                "title": "Move an Eversolo streamer to a new address",
+                "description": "Enter the new IP address or hostname of this Eversolo device. It must be the same physical unit as the one already set up.",
+                "data": {
+                    "host": "Host"
+                },
+                "data_description": {
+                    "host": "The address the streamer answers on now. Its entities and history are kept."
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Unable to connect to the server.",
+            "unsupported_model": "That address answered, but the device is not a supported Eversolo DMP model."
+        },
+        "abort": {
+            "already_configured": "This Eversolo device is already configured.",
+            "wrong_device": "That address is a different Eversolo device. Reconfigure only follows the existing device to a new address; to set up a different unit, add it as a new entry.",
+            "reconfigure_successful": "Reconfiguration was successful."
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "dsp_active": {
+                "name": "DSP active"
+            },
+            "eq_active": {
+                "name": "EQ active"
+            }
+        },
+        "button": {
+            "power_off": {
+                "name": "Power off"
+            },
+            "reboot": {
+                "name": "Reboot"
+            }
+        },
+        "number": {
+            "knob_brightness": {
+                "name": "Knob brightness"
+            },
+            "screen_brightness": {
+                "name": "Screen brightness"
+            }
+        },
+        "select": {
+            "dac_filter": {
+                "name": "DAC filter"
+            },
+            "knob_color": {
+                "name": "Knob color"
+            },
+            "master_clock": {
+                "name": "Master clock"
+            },
+            "output_routing": {
+                "name": "Output routing"
+            },
+            "spectrum_style": {
+                "name": "Spectrum style"
+            },
+            "upsampling": {
+                "name": "Upsampling"
+            },
+            "visualization": {
+                "name": "Visualization",
+                "state": {
+                    "off": "Off",
+                    "spectrum": "Spectrum",
+                    "vu_meter": "VU meter"
+                }
+            },
+            "vu_style": {
+                "name": "VU style"
+            }
+        },
+        "sensor": {
+            "audio_format": {
+                "name": "Audio format"
+            }
+        },
+        "switch": {
+            "cd_auto_play": {
+                "name": "CD auto play"
+            },
+            "eos_engine": {
+                "name": "EOS engine"
+            },
+            "gapless": {
+                "name": "Gapless playback"
+            },
+            "screen": {
+                "name": "Screen"
+            },
+            "subwoofer_output": {
+                "name": "Subwoofer output"
+            }
+        }
+    }
+}

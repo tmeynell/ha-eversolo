@@ -1,0 +1,22 @@
+{
+  "status": 200,
+  "currentIndex": 0,
+  "url": "/SystemSettings/audioSettings/setInputMasterClock?index=",
+  "data": [
+    {
+      "index": 0,
+      "title": "OCXO 10M",
+      "itemDescription": "Internal Clock"
+    },
+    {
+      "index": 1,
+      "title": "50Ω 10M",
+      "itemDescription": "External Clock"
+    },
+    {
+      "index": 2,
+      "title": "50Ω 25M",
+      "itemDescription": "External Clock"
+    }
+  ]
+}

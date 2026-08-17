@@ -1,0 +1,404 @@
+"""Media player platform for eversolo — the playback hub.
+
+One entity per device: what is playing, the transport that drives it, and the
+volume. It reads the live tier only, so it goes unavailable the moment
+``getState`` stops answering. Power lives on the button platform; this entity
+deliberately offers no ``turn_on``/``turn_off``.
+
+Two rules shape the code below:
+
+* **The device says what it can do.** ``everSoloPlayInfo``'s ``isCan*`` flags go
+  false on inputs the unit cannot drive (TV/eARC passes audio through untouched),
+  so the transport features are advertised per-poll rather than fixed, and each
+  command re-checks before firing — an inert input is a no-op, never an error.
+* **Writes are optimistic.** A command that succeeded has a known outcome, so the
+  entity shows it immediately and lets the next 5 s poll confirm, instead of
+  spending an extra read on it. Every poll wipes the guesses: the device's own
+  report always wins.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from datetime import datetime
+from typing import Any
+
+from homeassistant.components.media_player import (
+    MediaPlayerDeviceClass,
+    MediaPlayerEntity,
+    MediaPlayerEntityFeature,
+    MediaPlayerState,
+)
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.util import dt as dt_util
+
+from .const import CD_SOURCE, INPUT_INTERNAL_PLAYER, LOGGER
+from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
+from .data import EversoloInput, EversoloPlayback, EversoloVolume
+from .entity import EversoloEntity
+
+VOLUME_FEATURES = (
+    MediaPlayerEntityFeature.VOLUME_SET
+    | MediaPlayerEntityFeature.VOLUME_MUTE
+    | MediaPlayerEntityFeature.VOLUME_STEP
+)
+
+
+def _ignored(action: str) -> None:
+    """Note a command the current input will not act on."""
+    LOGGER.debug("Ignoring %s: the current input does not support it", action)
+
+
+@dataclass(frozen=True, slots=True)
+class Expected:
+    """What a just-accepted command should look like, pending confirmation.
+
+    One field per property that can be guessed; ``None`` means "no guess
+    outstanding, use what the device last reported".
+    """
+
+    state: MediaPlayerState | None = None
+    volume_level: float | None = None
+    is_volume_muted: bool | None = None
+    position: int | None = None
+    source: str | None = None
+
+
+async def async_setup_entry(hass, entry: EversoloConfigEntry, async_add_devices):
+    """Set up the Media Player platform."""
+    async_add_devices([EversoloMediaPlayer(entry.runtime_data)])
+
+
+class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
+    """Eversolo Media Player."""
+
+    _attr_device_class = MediaPlayerDeviceClass.RECEIVER
+    _attr_name = None
+
+    def __init__(self, coordinator: EversoloDataUpdateCoordinator) -> None:
+        """Initialize the Media Player."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_media_player"
+        # Outcomes the device has not confirmed yet, wiped by the next poll.
+        self._expected = Expected()
+        self._position: int | None = None
+        self._position_updated_at: datetime | None = None
+
+    # ------------------------------------------------------------------
+    # Snapshot plumbing.
+    # ------------------------------------------------------------------
+
+    @property
+    def _playback(self) -> EversoloPlayback:
+        """The last known playback slice."""
+        return self.coordinator.data.playback
+
+    @property
+    def _volume(self) -> EversoloVolume:
+        """The last known volume slice."""
+        return self.coordinator.data.volume
+
+    def _guess(self, guessed: Any, reported: Any) -> Any:
+        """Prefer an unconfirmed command outcome over the last polled value."""
+        return reported if guessed is None else guessed
+
+    def _expect(self, **outcomes: Any) -> None:
+        """Show the outcome of a command that has just been accepted."""
+        if (position := outcomes.get("position")) is not None:
+            # The seek bar is extrapolated from the stamp, so a guessed
+            # position has to carry a matching one or it reads as stale.
+            self._track_position(position)
+        # ``replace`` rejects a field name that is not a guessable property.
+        self._expected = replace(self._expected, **outcomes)
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        """Stamp the position that was already polled before we were added."""
+        await super().async_added_to_hass()
+        self._track_position(self._playback.position)
+
+    def _handle_coordinator_update(self) -> None:
+        """Take the device's word for everything, dropping any guesses."""
+        self._expected = Expected()
+        self._track_position(self._playback.position)
+        super()._handle_coordinator_update()
+
+    def _track_position(self, position: int | None) -> None:
+        """Record when the playback position last actually moved.
+
+        The frontend extrapolates the seek bar from this stamp, so it has to
+        mark a genuinely fresh reading — refreshing it on every poll would keep
+        a stalled player's bar creeping forward.
+        """
+        if position != self._position:
+            self._position = position
+            self._position_updated_at = dt_util.utcnow()
+
+    # ------------------------------------------------------------------
+    # What the device is doing.
+    # ------------------------------------------------------------------
+
+    @property
+    def supported_features(self) -> MediaPlayerEntityFeature:
+        """Advertise only the controls this input actually responds to."""
+        playback = self._playback
+        features = MediaPlayerEntityFeature(0)
+
+        if self.source_list:
+            features |= MediaPlayerEntityFeature.SELECT_SOURCE
+        if self._volume.is_enabled:
+            features |= VOLUME_FEATURES
+        if playback.can_change_play_status:
+            features |= MediaPlayerEntityFeature.PLAY | MediaPlayerEntityFeature.PAUSE
+        if playback.can_next:
+            features |= MediaPlayerEntityFeature.NEXT_TRACK
+        if playback.can_previous:
+            features |= MediaPlayerEntityFeature.PREVIOUS_TRACK
+        if playback.can_seek:
+            features |= MediaPlayerEntityFeature.SEEK
+
+        return features
+
+    @property
+    def state(self) -> MediaPlayerState:
+        """Return Media Player state.
+
+        ``playStatus`` is the honest signal (1 playing, 0 not); the top-level
+        ``state`` field goes stale on an inert input. The device draws no line
+        between paused and stopped, so a stopped track the unit can still
+        resume reads as paused. A track it cannot drive at all — the disc still
+        reported while the unit sits on the TV input — is not "paused": nothing
+        would resume it, so that reads as idle.
+        """
+        playback = self._playback
+        if playback.is_playing:
+            reported = MediaPlayerState.PLAYING
+        elif playback.has_media and playback.can_change_play_status:
+            reported = MediaPlayerState.PAUSED
+        else:
+            reported = MediaPlayerState.IDLE
+        return self._guess(self._expected.state, reported)
+
+    @property
+    def volume_level(self) -> float | None:
+        """Volume level of the Media Player in range 0..1."""
+        return self._guess(self._expected.volume_level, self._volume.level)
+
+    @property
+    def is_volume_muted(self) -> bool:
+        """Return muted state."""
+        return self._guess(self._expected.is_volume_muted, self._volume.is_muted)
+
+    @property
+    def media_title(self) -> str | None:
+        """Title of current playing media."""
+        return self._playback.title
+
+    @property
+    def media_artist(self) -> str | None:
+        """Artist of current playing media."""
+        return self._playback.artist
+
+    @property
+    def media_album_name(self) -> str | None:
+        """Album of current playing media."""
+        return self._playback.album
+
+    @property
+    def media_image_url(self) -> str | None:
+        """Image url of current playing media.
+
+        Streaming services hand over an absolute URL; the internal player gives
+        a device-local path, or nothing at all, in which case the artwork has to
+        be asked for by song id. A loaded disc is the exception: the unit keeps
+        publishing the network player's icon alongside it, and that cover
+        belongs to a different record, so a CD only ever shows its own art.
+        """
+        playback = self._playback
+        client = self.coordinator.client
+
+        if playback.art_url and not playback.is_cd:
+            if playback.art_url.startswith("http"):
+                return playback.art_url
+            return client.create_image_url_by_path(playback.art_url)
+        if playback.song_id is not None:
+            return client.create_image_url_by_song_id(
+                playback.song_id, playback.music_type
+            )
+        return None
+
+    @property
+    def media_duration(self) -> float | None:
+        """Duration of current playing media in seconds."""
+        duration = self._playback.duration
+        return duration / 1000 if duration else None
+
+    @property
+    def media_position(self) -> float | None:
+        """Position of current playing media in seconds."""
+        position = self._guess(self._expected.position, self._playback.position)
+        return position / 1000 if position is not None else None
+
+    @property
+    def media_position_updated_at(self) -> datetime | None:
+        """When the reported position was last a fresh reading."""
+        return self._position_updated_at
+
+    # ------------------------------------------------------------------
+    # Source selection, including the synthetic CD.
+    # ------------------------------------------------------------------
+
+    @property
+    def _has_cd(self) -> bool:
+        """Whether this unit has a disc drive at all."""
+        capabilities = self.coordinator.data.capabilities
+        return capabilities is not None and capabilities.has_cd
+
+    @property
+    def source(self) -> str | None:
+        """Return the current input source.
+
+        A disc reads back as the CD source only while the internal player is
+        the live input: the unit keeps reporting a loaded disc in
+        ``playingMusic`` even on the TV input (#03), where the TV is plainly
+        what is playing.
+        """
+        current = self.coordinator.data.inputs.current
+        if (
+            self._has_cd
+            and self._playback.is_cd
+            and current is not None
+            and current.tag == INPUT_INTERNAL_PLAYER
+        ):
+            reported = CD_SOURCE
+        else:
+            reported = current.name if current else None
+        return self._guess(self._expected.source, reported)
+
+    @property
+    def source_list(self) -> list[str] | None:
+        """List of available input sources, plus the CD where there is one.
+
+        Inputs are renameable on the device, so one can already be called "CD";
+        the synthetic source stands aside rather than listing the name twice.
+        """
+        names = [entry.name for entry in self.coordinator.data.inputs.available]
+        if names and self._has_cd and CD_SOURCE not in names:
+            names.append(CD_SOURCE)
+        return names or None
+
+    async def async_select_source(self, source: str) -> None:
+        """Set the input source."""
+        target = self._input_for(source)
+        if target is None:
+            raise ServiceValidationError(f"{source} is not an input on this device")
+
+        await self.coordinator.client.async_set_input(target.index, target.tag)
+        self._expect(source=source)
+        # The input list is slow-tier, so confirm the write instead of waiting
+        # up to 30 s for the next settings cycle.
+        await self.coordinator.async_refresh_settings()
+
+    def _input_for(self, source: str) -> EversoloInput | None:
+        """Resolve a chosen source name to an input, or None if it names none."""
+        inputs = self.coordinator.data.inputs
+        # A real input answers first: a user who renamed one "CD" means that
+        # one, and it would otherwise become unselectable.
+        if (named := inputs.by_name(source)) is not None:
+            return named
+        if source == CD_SOURCE and self._has_cd:
+            # A disc plays through the internal player and transport only works
+            # there (#03), so picking the CD switches the input — and stops.
+            # Starting playback is CD Auto Play's job, not this one's.
+            return inputs.by_tag(INPUT_INTERNAL_PLAYER)
+        return None
+
+    # ------------------------------------------------------------------
+    # Transport.
+    # ------------------------------------------------------------------
+
+    async def async_media_play(self) -> None:
+        """Send play command."""
+        if self.state is not MediaPlayerState.PLAYING:
+            await self._async_toggle_play_pause(MediaPlayerState.PLAYING)
+
+    async def async_media_pause(self) -> None:
+        """Send pause command."""
+        if self.state is MediaPlayerState.PLAYING:
+            await self._async_toggle_play_pause(MediaPlayerState.PAUSED)
+
+    async def async_media_play_pause(self) -> None:
+        """Toggle between play and pause."""
+        playing = self.state is MediaPlayerState.PLAYING
+        await self._async_toggle_play_pause(
+            MediaPlayerState.PAUSED if playing else MediaPlayerState.PLAYING
+        )
+
+    async def _async_toggle_play_pause(self, expected: MediaPlayerState) -> None:
+        """Fire the device's one play/pause toggle, if it is listening."""
+        if not self._playback.can_change_play_status:
+            _ignored("play/pause")
+            return
+        await self.coordinator.client.async_toggle_play_pause()
+        self._expect(state=expected)
+
+    async def async_media_next_track(self) -> None:
+        """Send next track command."""
+        if not self._playback.can_next:
+            _ignored("skip to the next track")
+            return
+        await self.coordinator.client.async_next_title()
+        # Whatever plays next, it plays from the top.
+        self._expect(position=0)
+
+    async def async_media_previous_track(self) -> None:
+        """Send the previous track command."""
+        if not self._playback.can_previous:
+            _ignored("skip to the previous track")
+            return
+        await self.coordinator.client.async_previous_title()
+        self._expect(position=0)
+
+    async def async_media_seek(self, position: float) -> None:
+        """Seek the media to a specific location."""
+        if not self._playback.can_seek:
+            _ignored("seek")
+            return
+        milliseconds = round(position * 1000)
+        await self.coordinator.client.async_seek_time(milliseconds)
+        self._expect(position=milliseconds)
+
+    # ------------------------------------------------------------------
+    # Volume.
+    # ------------------------------------------------------------------
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        """Set volume level, range 0..1."""
+        scale = self._volume
+        if scale.maximum is None:
+            LOGGER.debug("Ignoring volume: the device has not reported its range")
+            return
+
+        span = scale.maximum - scale.minimum
+        await self.coordinator.client.async_set_volume(
+            round(scale.minimum + volume * span)
+        )
+        self._expect(volume_level=volume)
+
+    async def async_volume_up(self) -> None:
+        """Volume up the Media Player."""
+        # The device owns the step size, so there is nothing to guess here; the
+        # next poll brings back where it landed.
+        await self.coordinator.client.async_volume_up()
+
+    async def async_volume_down(self) -> None:
+        """Volume down Media Player."""
+        await self.coordinator.client.async_volume_down()
+
+    async def async_mute_volume(self, mute: bool) -> None:
+        """Send mute command."""
+        if mute:
+            await self.coordinator.client.async_mute()
+        else:
+            await self.coordinator.client.async_unmute()
+        self._expect(is_volume_muted=mute)

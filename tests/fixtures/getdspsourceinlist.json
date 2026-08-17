@@ -1,0 +1,37 @@
+{
+  "status": "200",
+  "eqSourceList": [
+    {
+      "id": 1,
+      "eqId": 1,
+      "name": "Internal player",
+      "enable": true,
+      "sourceType": "XMOS",
+      "configName": "wiim rc only"
+    },
+    {
+      "id": 2,
+      "eqId": 4,
+      "name": "Bluetooth In",
+      "enable": true,
+      "sourceType": "BT",
+      "configName": "claude test"
+    },
+    {
+      "id": 4,
+      "eqId": 1,
+      "name": "Record Player",
+      "enable": false,
+      "sourceType": "SPDIF",
+      "configName": "wiim rc only"
+    },
+    {
+      "id": 6,
+      "eqId": 1,
+      "name": "TV",
+      "enable": false,
+      "sourceType": "EARC",
+      "configName": "wiim rc only"
+    }
+  ]
+}

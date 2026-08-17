@@ -1,0 +1,84 @@
+{
+  "status": 200,
+  "items": [
+    {
+      "title": "Subwoofer Output",
+      "icon": "",
+      "option": 0,
+      "tag": "SettingsItemTagSubSwitchEnable",
+      "contentTips": "",
+      "url": "/SystemSettings/audioSettings/subOutputOption/setSubSwitchEnable?switch=",
+      "switchStatus": true,
+      "itemDescription": "Enable or disable the subwoofer output channel."
+    },
+    {
+      "title": "Main port output bypass",
+      "icon": "",
+      "option": 0,
+      "tag": "SettingsItemTagA10MainOutputBypassEnable",
+      "contentTips": "",
+      "url": "/SystemSettings/audioSettings/subOutputOption/setA10MainOutputBypassEnable?switch=",
+      "switchStatus": false,
+      "itemDescription": "When this switch is turned on, the main port (L/R) will output full-frequency signals, and the high-pass filter will not take effect"
+    },
+    {
+      "title": "Subwoofer port output bypass",
+      "icon": "",
+      "option": 0,
+      "tag": "SettingsItemTagA10SubwooferOutputBypassEnable",
+      "contentTips": "",
+      "url": "/SystemSettings/audioSettings/subOutputOption/setA10SubwooferOutputBypassEnable?switch=",
+      "switchStatus": false,
+      "itemDescription": "When this switch is turned on, the subwoofer port will output full-frequency signals, and the low-pass filter will not take effect"
+    },
+    {
+      "title": "Level",
+      "icon": "",
+      "option": 7,
+      "tag": "SettingsItemTagSubOutputVolumeOffset",
+      "url": "/SystemSettings/audioSettings/subOutputOption/setSubOutputVolumeOffset?index=",
+      "startTitle": "-15 dB",
+      "endTitle": "15 dB",
+      "currentTitle": "1 dB",
+      "currentProgress": 32,
+      "maxProgress": 60,
+      "itemDescription": "",
+      "selectTitle": "1 dB"
+    },
+    {
+      "title": "Crossover point",
+      "icon": "",
+      "option": 3,
+      "tag": "SettingsItemTagSubOutputCrossoverFrequency",
+      "url": "/SystemSettings/audioSettings/subOutputOption/setSubOutputCrossoverFrequency?index=%s&type=%s",
+      "crossoverObj": {
+        "startTitle": "40Hz",
+        "endTitle": "500Hz",
+        "currentTitle": "Crossover point:80Hz",
+        "currentProgress": 40,
+        "maxProgress": 460
+      },
+      "hpCrossoverObj": {
+        "startTitle": "10Hz",
+        "endTitle": "70Hz",
+        "currentTitle": "HPF for Subwoofer:10 Hz",
+        "currentProgress": 0,
+        "maxProgress": 60
+      },
+      "itemDescription": "Please set the crossover point to 10–20Hz lower than the subwoofer device itself"
+    },
+    {
+      "title": "Subwoofer Delay",
+      "option": 3,
+      "tag": "SettingsItemTagSubOutputSubwooferDelay",
+      "url": "/SystemSettings/audioSettings/subOutputOption/setSubOutputSubwooferDelay?unit=%s&mainDistance=%s&subDistance=%s&type=%s",
+      "selectTitle": "0.0ms",
+      "unit": 0,
+      "mainDistance": 299,
+      "subDistance": 299,
+      "mainDelayStr": "Main speaker: Delay 0.0ms, distance 299cm",
+      "subDelayStr": "Subwoofer: Delay 0.0ms, distance 299cm",
+      "itemDescription": ""
+    }
+  ]
+}

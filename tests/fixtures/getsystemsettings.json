@@ -1,0 +1,410 @@
+{
+  "status": 200,
+  "settings": [
+    {
+      "title": "Audio",
+      "tag": "audio",
+      "items": [
+        {
+          "title": "Source",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_cd.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_cd_light.png",
+          "option": 4,
+          "tag": "theme_input_settings",
+          "url": "",
+          "selectTitle": ""
+        },
+        {
+          "title": "Master Clock",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_phone_audio_master_clock.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_phone_audio_master_clock_light.png",
+          "option": 1,
+          "tag": "SettingsItemTagMasterClock",
+          "url": "/SystemSettings/audioSettings/getMasterClockList",
+          "selectTitle": "OCXO 10M",
+          "itemDescription": "Select the clock reference used for device operation. The system can operate independently using its internal high-precision clock, or it can use an external reference clock as a unified time base to meet the connection and integration needs of different audio systems."
+        },
+        {
+          "title": "XLR/RCA output",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_xlr_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_xlr_xxxhdpi_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagXLROutput",
+          "url": "/SystemSettings/audioSettings/getXlrOutputOption",
+          "selectTitle": ""
+        },
+        {
+          "title": "Subwoofer",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_sub.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_sub_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagSubOutput",
+          "url": "/SystemSettings/audioSettings/getSubOutputOption",
+          "selectTitle": ""
+        },
+        {
+          "title": "IIS Output",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_hdmi_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_hdmi_xxxhdpi_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagIISOutput",
+          "url": "/SystemSettings/audioSettings/getIISOutputOption",
+          "selectTitle": ""
+        },
+        {
+          "title": "SPDIF/COAX/AES output",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_coaxial_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_coaxial_xxxhdpi_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagSpdifOutput",
+          "url": "/SystemSettings/audioSettings/getSpdifOutputOption",
+          "selectTitle": ""
+        },
+        {
+          "title": "USB DAC output",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_usbdac_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_usbdac_xxxhdpi_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagUsbDacOutput",
+          "url": "/SystemSettings/audioSettings/getUsbDacOutputOption",
+          "selectTitle": ""
+        },
+        {
+          "title": "ARC mode",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_hdmi_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_hdmi_xxxhdpi_light.png",
+          "option": 1,
+          "tag": "SettingsItemTagARCOutput",
+          "url": "/SystemSettings/audioSettings/getARCOutputList",
+          "selectTitle": "EARC",
+          "itemDescription": "ARC and eARC are HDMI audio return channel features that allow a TV to send audio back to an audio system. eARC provides significantly higher bandwidth and supports lossless multichannel formats such as Dolby TrueHD, DTS-HD MA, and even Dolby Atmos. This allows audio from TV streaming services or Blu-ray playback to be transmitted to external audio systems for better sound quality."
+        }
+      ]
+    },
+    {
+      "title": "Playback",
+      "tag": "play",
+      "items": [
+        {
+          "title": "ReplayGain source mode",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_gain.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_gain_light.png",
+          "option": 1,
+          "tag": "SettingsItemTagReplaygain",
+          "url": "/SystemSettings/playSettings/getReplaygainList",
+          "selectTitle": "Track",
+          "itemDescription": "ReplayGain technology automatically adjusts playback volume so that tracks from different sources or recording levels maintain consistent loudness. Track mode normalizes each track to the same target level, while album mode preserves the relative level differences within an album while normalizing the overall album level."
+        },
+        {
+          "title": "CD Auto Play",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_cd.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_cd_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagCDAutoPlay",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setCDAutoPlay?switch=",
+          "switchStatus": false,
+          "itemDescription": "When a CD insert, it will automatically start playing."
+        },
+        {
+          "title": "Gapless playback",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_analog_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_analog_xxxhdpi_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagGallessnewPlay",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setGallessnewPlay?switch=",
+          "switchStatus": true,
+          "itemDescription": "Eliminates time gaps between track transitions for a smooth and continuous music playback experience."
+        },
+        {
+          "title": "Cached Streaming Playback",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=settings_play_file_skip.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=settings_play_file_skip_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagPoxyPlay",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/sePoxyPlay?switch=",
+          "switchStatus": false,
+          "itemDescription": "When enabled, online audio is played through a local cache proxy to reduce stuttering on weak networks and improve stability when seeking. (Experimental feature)"
+        },
+        {
+          "title": "Previous button reset playback",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_previous.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_previous_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagSeekZeroPlay",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setSeekZeroPlay?switch=",
+          "switchStatus": false,
+          "itemDescription": "After the current track plays for 5 seconds, click the previous play button to reset the current track"
+        },
+        {
+          "title": "Automatically switch input source",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_analog.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_analog_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagAutoChangeSource",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setAutoChangeSource?switch=",
+          "switchStatus": true,
+          "itemDescription": "Automatically switch to the corresponding input source (only supports Internal player); Internal player includes built-in music service and Connect"
+        },
+        {
+          "title": "Folder skipping playback",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=settings_play_file_skip.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=settings_play_file_skip_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagFolderSkipPlay",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setFolderSkipPlay?switch=",
+          "switchStatus": false,
+          "itemDescription": "When the playback is in sequential mode, when playing the last song of the folder, it will skip to the next one"
+        },
+        {
+          "title": "Skip to next device playlist",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_skip.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_skip_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagPlaylistSkipPlay",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setPlaylistSkipPlay?switch=",
+          "switchStatus": false,
+          "itemDescription": "Enable this option to automatically play the next device playlist after finishing the last song in the current playlist when in sequential play mode."
+        },
+        {
+          "title": "Jump to the playback screen when starting",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_details_play.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_details_play_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagPlayOpenDetail",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setPlayOpenDetail?switch=",
+          "switchStatus": false,
+          "itemDescription": "When playing from the track list, jump to the playback screen"
+        },
+        {
+          "title": "Auto-play behavior on startup",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_playlist.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_playlist_light.png",
+          "option": 1,
+          "tag": "SettingsItemTagBootPlayMode",
+          "url": "/SystemSettings/playSettings/getAudioBootUpAutoPlayModeList",
+          "selectTitle": "None",
+          "itemDescription": "Set playback behavior after power-on: no playback, resume last, or auto-play by rule"
+        },
+        {
+          "title": "Automatically open the playback screen on startup",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_details.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_details_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagAutoOpenDetail",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setAutoOpenDetail?switch=",
+          "switchStatus": true,
+          "itemDescription": "Only effective when using the built-in player and there are tracks in the playback queue"
+        },
+        {
+          "title": "Automatically open the VU meter interface on startup",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_vu_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_vu_xxxhdpi_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagAutoOpenVuTable",
+          "isShowTips": false,
+          "contentTips": "",
+          "url": "/SystemSettings/playSettings/setAutoOpenVuTable?switch=",
+          "switchStatus": true,
+          "itemDescription": "Only effective when using the built-in player and there are tracks in the playback queue"
+        },
+        {
+          "title": "Eversolo Original sampling-rate audio engine",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_eos_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_audio_icon_eos_xxxhdpi_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagEOSEngine",
+          "isShowTips": true,
+          "contentTips": "Eversolo Original Sampling-Rate Audio Engine, also known as the EOS engine, is the underlying audio engine independently created by Eversolo. It enables the global original sampling rate of the system, Direct output, floating-point data from third-party applications; The DSD and PCM audio VU processing and local music files gapless play. A seamless and high-fidelity music experience is supported. Please try to disable this engine if you encounter individual third-party application sound anomalies.",
+          "url": "/SystemSettings/playSettings/setEOSEngine?switch=",
+          "switchStatus": true,
+          "isLastList": true,
+          "itemDescription": "System global raw sample rate output"
+        }
+      ]
+    },
+    {
+      "title": "Display",
+      "tag": "display",
+      "items": [
+        {
+          "title": "Touch button",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_keystroke.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_play_icon_keystroke_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagTouchBarKey",
+          "url": "/SystemSettings/displaySettings/getTouchBarKeyOption",
+          "selectTitle": ""
+        },
+        {
+          "title": "Screen brightness",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pmld_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pmld_xxxhdpi_light.png",
+          "option": 6,
+          "tag": "SettingsItemTagScreenBrightness",
+          "url": "/SystemSettings/displaySettings/setScreenBrightness?index=",
+          "selectTitle": "11%",
+          "currentValue": 30,
+          "maxValue": 255,
+          "minValue": 0
+        },
+        {
+          "title": "Screensaver",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pb_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pb_xxxhdpi_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagScreensaver",
+          "url": "/SystemSettings/displaySettings/getScreensaverSettingList",
+          "selectTitle": "",
+          "itemDescription": ""
+        },
+        {
+          "title": "VU meter",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_vu_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_vu_xxxhdpi_light.png",
+          "option": 5,
+          "tag": "SettingsItemTagVUMode",
+          "url": "/SystemSettings/displaySettings/getVUModeList",
+          "selectTitle": "VU meter 11",
+          "isLastList": true,
+          "itemDescription": "VU meter theme and visual style"
+        },
+        {
+          "title": "Theme mode",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_layout_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_layout_xxxhdpi_light.png",
+          "option": 5,
+          "tag": "SettingsItemTagPlayMode",
+          "url": "/SystemSettings/displaySettings/getPlayModeList",
+          "selectTitle": "Theme 2",
+          "isLastList": true,
+          "itemDescription": "Playback detail page theme template"
+        },
+        {
+          "title": "Display playback details spectrum",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pinpubg_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pinpubg_xxxhdpi_light.png",
+          "option": 0,
+          "tag": "SettingsItemTagShowSpBg",
+          "isSwitchOpenHint": false,
+          "contentTips": "",
+          "url": "/SystemSettings/displaySettings/setShowSpBg?switch=",
+          "switchStatus": true,
+          "itemDescription": ""
+        },
+        {
+          "title": "Spectrum mode",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pinpu_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_screen_icon_pinpu_xxxhdpi_light.png",
+          "option": 5,
+          "tag": "SettingsItemTagSpPlayMode",
+          "url": "/SystemSettings/displaySettings/getSpPlayModeList",
+          "selectTitle": "Spectrum 4",
+          "isLastList": true,
+          "itemDescription": ""
+        }
+      ]
+    },
+    {
+      "title": "General",
+      "tag": "general",
+      "items": [
+        {
+          "title": "Language",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_language_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_language_xxxhdpi_light.png",
+          "option": 1,
+          "tag": "SettingsItemTagLanguage",
+          "url": "/SystemSettings/geneicSettings/getLanguageList",
+          "selectTitle": "English (Australia)",
+          "itemDescription": "System display language"
+        },
+        {
+          "title": "Input method",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_srf_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_srf_xxxhdpi_light.png",
+          "option": 1,
+          "tag": "SettingsItemTagKeyboard",
+          "url": "/SystemSettings/geneicSettings/getKeyboardList",
+          "selectTitle": "Android Keyboard (AOSP)",
+          "itemDescription": "Default input method"
+        },
+        {
+          "title": "USB-OTG port",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_usbotg_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_usbotg_xxxhdpi_light.png",
+          "option": 1,
+          "tag": "SettingsItemTagUsbotg",
+          "url": "/SystemSettings/geneicSettings/getUsbotgList",
+          "selectTitle": "External storage device",
+          "itemDescription": "USB OTG mode (Host/Device)"
+        },
+        {
+          "title": "Power Mode",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_dyms_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_dyms_xxxhdpi_light.png",
+          "option": 1,
+          "tag": "SettingsItemPowerMode",
+          "url": "/SystemSettings/geneicSettings/getPowerModeList",
+          "selectTitle": "Startup after power plug in",
+          "itemDescription": "Power-on startup mode"
+        },
+        {
+          "title": "Power key",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_general_icon_power.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_general_icon_power_light.png",
+          "option": 1,
+          "tag": "SettingsItemPowerMode",
+          "url": "/SystemSettings/geneicSettings/getPowerKeyModeList",
+          "selectTitle": "Power off menu",
+          "itemDescription": "Power key action (sleep/power off etc.)"
+        },
+        {
+          "title": "Date and Time",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_time.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_time_light.png",
+          "option": 3,
+          "tag": "SettingsItemTagDataTime",
+          "url": "/SystemSettings/geneicSettings/getDataTimeOption",
+          "selectTitle": ""
+        },
+        {
+          "title": "Factory reset",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_hfcc_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_hfcc_xxxhdpi_light.png",
+          "option": 4,
+          "tag": "SettingsItemTagResetFactory",
+          "url": "/SystemSettings/geneicSettings/factoryReset",
+          "selectTitle": ""
+        },
+        {
+          "title": "About",
+          "icon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_about_xxxhdpi.png",
+          "lightIcon": "/SystemSettings/getItemSettingIcon?iconName=setting_tongyong_icon_about_xxxhdpi_light.png",
+          "option": 4,
+          "tag": "SettingsItemTagAbout",
+          "url": "/ControlCenter/getModel",
+          "selectTitle": "",
+          "isLastList": true
+        }
+      ]
+    }
+  ]
+}
