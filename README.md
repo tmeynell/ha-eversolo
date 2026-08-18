@@ -18,11 +18,13 @@ This custom component integrates Eversolo streamers into
 control API on port 9529 over your LAN — no cloud account, no vendor app, and
 nothing to authenticate.
 
-It supports Eversolo's DMP-A line (DMP-A6, DMP-A8 and other A-series models).
+It supports Eversolo's DMP-A line (DMP-A6, DMP-A8, DMP-A10 and other A-series models).
 Every entity is gated on what the device itself reports it has, so entity sets
 vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested.** A
-device that does not identify itself as a DMP-A model is refused during setup;
-wider Eversolo device support isn't implemented yet.
+device that does not identify itself as a DMP-A model is refused during setup.
+Other Eversolo lines (PLAY, T8/T10, the DAC-Z series) aren't admitted — not ruled
+out by design, just unverified: there's no hardware available yet to confirm they
+share the DMP-A entity shape.
 
 ### Entities
 
