@@ -18,18 +18,18 @@ This custom component integrates Eversolo streamers into
 control API on port 9529 over your LAN — no cloud account, no vendor app, and
 nothing to authenticate.
 
-It works with any Eversolo device the official Eversolo Control app supports.
+It supports Eversolo's DMP-A line (DMP-A6, DMP-A8 and other A-series models).
 Every entity is gated on what the device itself reports it has, so entity sets
 vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested.** A
-device that does not identify itself as an Eversolo DMP model is refused
-during setup.
+device that does not identify itself as a DMP-A model is refused during setup;
+wider Eversolo device support isn't implemented yet.
 
 ### Entities
 
 | Platform      | Name                 | Description                                                                   |
 |---------------|----------------------|-------------------------------------------------------------------------------|
 | Media Player  | _(the device itself)_| Now playing, transport, volume/mute and source                                |
-| Binary Sensor | DSP active           | Diagnostic: whether DSP is engaged **for the input in use** (see below)       |
+| Binary Sensor | DSP active           | Diagnostic: whether DSP is engaged for the currently selected input           |
 | Binary Sensor | EQ active            | Diagnostic: whether output EQ is engaged (only on units that have an EQ side) |
 | Button        | Power off            | Turns off device (only on units that report they accept it)                  |
 | Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it) |
@@ -48,7 +48,7 @@ during setup.
 | Switch        | CD auto play         | Starts a disc as soon as it is inserted (only on units with a CD drive)       |
 | Switch        | EOS engine           | Eversolo's original sampling-rate audio engine                                |
 | Switch        | Gapless playback     | Plays consecutive tracks without a gap                                        |
-| Switch        | Screen               | Blanks or wakes the front display (write-only — see below)                    |
+| Switch        | Screen               | Blanks or wakes the front display (see below)                                |
 | Switch        | Subwoofer output     | Enables the subwoofer channel (only on units with a subwoofer output)         |
 
 The media player takes the device's own name and carries no entity name of its
@@ -73,28 +73,12 @@ and Spectrum. An automation has to use the values — `state: "VU meter"` will
 never match. This is the only select where the two differ: every other one
 offers option labels the device itself supplies, and those are used as-is.
 
-**DSP active is per-input, not a global "DSP is on".** The device keeps a
-separate profile assignment and enable flag for each of its four inputs, and
-reports the one belonging to whichever input is selected — so changing source
-can flip this sensor with nothing else having changed. The sensor's `input`
-attribute names the input its current reading is about. **The attribute is
-absent, not a raw device code, for the first few polls after startup** while
-that name is still resolving — a template can treat a missing `input` as "not
-known yet" and never has to recognize a raw code standing in for the label.
-**EQ active** is the
-same reading for the parallel EQ feature, which applies to the digital
-_outputs_ instead; units without an EQ side (including the DMP-A8 Gen 2) get no
-EQ entity at all. Both are read-only.
-
-**The Screen switch is write-only.** No field the device reports says whether
-the front display is lit — not `getState`, not the settings tree — and the only
-call available _toggles_ it. So the switch is marked as assuming its state: it
-shows what it last asked for (remembered across restarts), and does not send a
-second request for a state it already shows, because the device would read that
-as "change" and do the opposite. Blank the screen at the unit itself and the
-switch cannot notice; its next press will be one step out of phase. Screen
-brightness and Visualization have no such caveat — the device reports both, so
-they follow changes made on the unit.
+**The Screen switch assumes its state rather than reading it back.** We
+haven't found a device field that reports whether the front display is lit, so
+the switch just remembers what it last asked for, across restarts. Blank the
+screen at the unit itself and the switch won't notice — its next press will be
+one step out of phase. Screen brightness and Visualization aren't affected;
+the device reports both directly.
 
 **Power is symmetric on units that report `ableRemoteBoot`.** The media
 player's `turn_on`/`turn_off` and the Power On/Off buttons drive the same two
