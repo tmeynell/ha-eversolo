@@ -17,9 +17,13 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
         - name: "Checkout the repository"
-          uses: "actions/checkout@v6.0.2"
+          uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
 
         - name: "Run hassfest validation"
+          # Tracks master deliberately, not pinned: Home Assistant's own docs require this so
+          # hassfest validates against current core. A pinned hassfest goes stale and stops
+          # validating anything useful — a slower, worse failure than the supply-chain risk
+          # a pin would close.
           uses: "home-assistant/actions/hassfest@master"
 
   hacs: # https://github.com/hacs/action
@@ -32,9 +36,12 @@ jobs:
     if: ${{ !github.event.repository.private }}
     steps:
         - name: "Checkout the repository"
-          uses: "actions/checkout@v6.0.2"
+          uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
 
         - name: "Run HACS validation"
+          # Tracks main deliberately, not pinned: HACS's own validation rules move with the
+          # action, and a pinned copy silently drifts from what real HACS installs enforce.
+          # Same trade as hassfest above — staleness is the worse failure here.
           uses: "hacs/action@main"
           with:
             category: "integration"
