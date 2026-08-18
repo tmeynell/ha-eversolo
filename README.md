@@ -20,7 +20,7 @@ nothing to authenticate.
 
 It works with any Eversolo device the official Eversolo Control app supports.
 Every entity is gated on what the device itself reports it has, so entity sets
-vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50) has been tested.** A
+vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested.** A
 device that does not identify itself as an Eversolo DMP model is refused
 during setup.
 
