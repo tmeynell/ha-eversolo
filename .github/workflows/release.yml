@@ -1,11 +1,9 @@
 name: "Release"
 
-# Do not cut a release from this repository yet. All 18 of upstream's tags (0.1.0 … 0.9.1)
-# are on origin, HACS picks the newest release by version comparison, and this workflow
-# writes the release tag straight into manifest.json — so nothing published here would ever
-# be offered as an update while 0.9.1 exists. Releases begin at build #14's fresh,
-# tagless repo. Kept (not deleted) because the repo is going public later, at which point
-# this becomes real.
+# Fires on a published GitHub release. Writes the release tag verbatim into
+# manifest.json's "version", zips custom_components/eversolo/, and attaches the zip
+# (named eversolo.zip — hacs.json's "filename" must match) to the release. That's the
+# artifact HACS installs as a custom repository.
 
 on:
   release:
@@ -25,6 +23,10 @@ jobs:
         uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
 
       - name: "Adjust version number"
+        # Writes the tag verbatim — no "v" stripped. The version contract is bare tags
+        # (1.0.0, not v1.0.0); a "v" typed into the release tag ships "version": "v1.0.0"
+        # inside the zip to every HACS user. Enforce the bare-tag contract when cutting
+        # the release, not here.
         shell: "bash"
         run: |
           yq -i -o json '.version="${{ github.event.release.tag_name }}"' \
