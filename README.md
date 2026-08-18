@@ -31,8 +31,8 @@ during setup.
 | Media Player  | _(the device itself)_| Now playing, transport, volume/mute and source                                |
 | Binary Sensor | DSP active           | Diagnostic: whether DSP is engaged **for the input in use** (see below)       |
 | Binary Sensor | EQ active            | Diagnostic: whether output EQ is engaged (only on units that have an EQ side) |
-| Button        | Power off            | Turns off device (only on units that report they accept it)                   |
-| Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it)  |
+| Button        | Power off            | Turns off device (only on units that report they accept it)                  |
+| Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it) |
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
 | Number        | Knob brightness      | Knob brightness, 0–100% (only on units with a knob)                           |
 | Number        | Screen brightness    | Front display brightness, 0–100%                                              |
