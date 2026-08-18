@@ -2,3 +2,8 @@
 # homeassistant==2026.4.0 (matches requirements.txt), giving aioclient_mock,
 # the hass fixture, and enable_custom_integrations.
 pytest-homeassistant-custom-component==0.13.321
+
+# Matches manifest.json's requirements pin — HA installs this itself in a real
+# deployment, but the test environment needs its own copy since coordinator.py
+# imports wake_on_lan.py transitively.
+wakeonlan==3.1.0
