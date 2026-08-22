@@ -283,7 +283,11 @@ GATES: tuple[Gate, ...] = (
 
 # The entities no capability gates. At least one must survive every mutation
 # above, or "the gate worked" and "setup fell over" look identical.
-UNGATED = (("media_player", "_media_player"), ("sensor", "_audio_format"))
+UNGATED = (
+    ("media_player", "_media_player"),
+    ("sensor", "_audio_format"),
+    ("sensor", "_input"),
+)
 
 # Exactly what the captured A8 justifies. This is the set the live acceptance
 # checklist's gating section counts by hand against the real unit; pinning it

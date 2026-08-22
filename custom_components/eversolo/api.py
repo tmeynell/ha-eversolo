@@ -409,6 +409,15 @@ class EversoloApiClient:
         """Create url to fetch album covers when using AirPlay by concatting the path."""
         return self._url(path)
 
+    def create_image_url_or_none(self, path: str | None) -> str | None:
+        """Resolve a nullable device icon path to a URL, or None if there is none.
+
+        The one check every ``entity_picture`` backed by a device icon field
+        needs before ``create_image_url_by_path`` — shared rather than
+        repeated at each call site (#16).
+        """
+        return self.create_image_url_by_path(path) if path else None
+
     # ------------------------------------------------------------------
     # Transport.
     # ------------------------------------------------------------------

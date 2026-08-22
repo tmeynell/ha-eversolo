@@ -1,4 +1,4 @@
-"""Audio Format sensor tests: the diagnostic view of the live stream."""
+"""Audio Format and Input sensor tests: the diagnostic view of the live stream."""
 
 from __future__ import annotations
 
@@ -9,9 +9,11 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from .helpers import (
+    BASE_URL,
     GET_INPUT_OUTPUT,
     GET_STATE,
     entity_id_for,
+    entity_object,
     fixture_json,
     prime_device,
     setup_integration,
@@ -113,3 +115,57 @@ async def test_audio_format_goes_unavailable_when_the_device_does(
     await hass.async_block_till_done()
 
     assert hass.states.get(entity_id).state == STATE_UNAVAILABLE
+
+
+async def test_input_reads_the_live_input_name_and_icon(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#16: the Input sensor pairs the live input's name with its own icon.
+
+    Default fixture has ``intputTag: XMOS-XMOS`` / ``intputIcon:
+    .../XMOS.png``, and the settings-tier input list names ``XMOS``
+    "Internal player" (see ``fixtures/getinputandoutputlist.json``).
+    """
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+
+    entity_id = entity_id_for(hass, "_input")
+    state = hass.states.get(entity_id)
+    assert state.state == "Internal player"
+    assert state.attributes["entity_picture"] == (
+        f"{BASE_URL}/SystemSettings/getItemSettingIcon?iconName=XMOS.png"
+    )
+
+
+async def test_input_has_no_picture_before_the_input_list_resolves(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A live ``intputIcon`` with no resolved name yet shows neither (#16 review).
+
+    ``volumeData.intputIcon`` is live-tier and arrives on the very first
+    ``getState`` poll; the label it would pair with waits on the
+    settings-tier input list, broken here to prove the two do not arrive
+    together — a picture with no name to go with it is exactly the mismatch
+    this entity exists to avoid.
+    """
+    prime_device(
+        aioclient_mock, {GET_INPUT_OUTPUT: {"exc": aiohttp.ClientError("offline")}}
+    )
+    await setup_integration(hass)
+
+    entity_id = entity_id_for(hass, "_input")
+    assert hass.states.get(entity_id).state == STATE_UNKNOWN
+    assert entity_object(hass, entity_id).entity_picture is None
+
+
+async def test_input_has_no_picture_before_the_device_reports_one(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A payload that omits ``intputIcon`` gets no picture, not a broken URL."""
+    no_icon = fixture_json("getstate_spotify_disc_loaded.json")
+    del no_icon["volumeData"]["intputIcon"]
+    prime_device(aioclient_mock, {GET_STATE: {"json": no_icon}})
+    await setup_integration(hass)
+
+    entity_id = entity_id_for(hass, "_input")
+    assert entity_object(hass, entity_id).entity_picture is None

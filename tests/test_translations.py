@@ -52,7 +52,7 @@ DESCRIBED_PLATFORMS = (
 # off entities HA has actually set up and does not consult this list at all.
 STANDALONE_KEYS = {
     "select": ("visualization",),
-    "sensor": ("audio_format",),
+    "sensor": ("audio_format", "input"),
     "switch": ("screen",),
 }
 

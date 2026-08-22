@@ -43,6 +43,7 @@ from custom_components.eversolo.const import (
 )
 
 from .helpers import (
+    BASE_URL,
     GET_INPUT_OUTPUT,
     GET_MODEL,
     GET_STATE,
@@ -485,6 +486,27 @@ async def test_the_discs_cover_url_carries_the_params_the_device_needs(
     assert "musicType=4" in url
     assert "type=4" in url
     assert "target=16" in url
+
+
+async def test_form_icon_is_a_last_resort_when_streaming_has_no_art(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#16: a streaming track with no cover falls back to its source badge.
+
+    Cleared ``everSoloPlayInfo.icon`` by hand — every streaming capture on
+    hand happens to carry real art — so ``art_url`` is genuinely absent and
+    the fallback chain has to reach ``form_icon``.
+    """
+    state = fixture_json("getstate_streaming.json")
+    state["everSoloPlayInfo"]["icon"] = ""
+
+    entity_id = await _player(hass, aioclient_mock, {GET_STATE: {"json": state}})
+
+    url = entity_object(hass, entity_id).media_image_url
+    assert url == (
+        f"{BASE_URL}/SystemSettings/getItemSettingIcon"
+        "?iconName=musicplay_nav_spottfycnt_v2.png"
+    )
 
 
 async def test_selecting_cd_switches_to_the_internal_player_without_playing(
