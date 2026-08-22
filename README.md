@@ -47,6 +47,7 @@ share the DMP-A entity shape.
 | Select        | Visualization        | What the front display shows (see the note below on its values)               |
 | Select        | VU style             | Selects between the VU meter styles the device lists                          |
 | Sensor        | Audio format         | Diagnostic: current stream quality, e.g. `PCM 44.1kHz/16bit`                  |
+| Sensor        | Input                | The live input's name, with the device's own icon as its picture              |
 | Switch        | CD auto play         | Starts a disc as soon as it is inserted (only on units with a CD drive)       |
 | Switch        | EOS engine           | Eversolo's original sampling-rate audio engine                                |
 | Switch        | Gapless playback     | Plays consecutive tracks without a gap                                        |
@@ -81,6 +82,14 @@ the switch just remembers what it last asked for, across restarts. Blank the
 screen at the unit itself and the switch won't notice — its next press will be
 one step out of phase. Screen brightness and Visualization aren't affected;
 the device reports both directly.
+
+**Two entities carry a device-supplied icon as `entity_picture`, fetched
+straight from the device over plain `http://`** — the Input sensor (always,
+once the device has reported one) and, only as a last resort when there is no
+real cover art to show, the media player's now-playing picture (a small
+source badge, not album art; never used on Bluetooth, which has no badge of
+its own). Home Assistant's browser handling of mixed content applies if your
+own UI is served over `https://`.
 
 **Power is symmetric on units that report `ableRemoteBoot`.** The media
 player's `turn_on`/`turn_off` and the Power On/Off buttons drive the same two

@@ -257,9 +257,13 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         ``EversoloPlayback.from_state`` already picked the block that
         describes what is audible, by ``playType`` — a network source's
         ``art_url`` is an absolute URL, the local player's is a device-local
-        path or nothing, and Bluetooth's is always nothing. Only the local
-        branch (nothing in hand) falls through to a song-id lookup; a
-        streaming or Bluetooth track has no disc song id to fetch.
+        path or nothing, and Bluetooth's is always nothing. The local branch
+        (nothing in hand) falls through to a song-id lookup; a streaming or
+        Bluetooth track has no disc song id to fetch. Last resort is
+        ``form_icon`` (#16) — a small source badge, not real art, and never
+        set for Bluetooth (see ``EversoloPlayback.from_state``), but better
+        than nothing on a local disc with no embedded cover or a streaming
+        track its service sent no art for.
         """
         playback = self._playback
         client = self.coordinator.client
@@ -272,7 +276,7 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
             return client.create_image_url_by_song_id(
                 playback.song_id, playback.music_type
             )
-        return None
+        return client.create_image_url_or_none(playback.form_icon)
 
     @property
     def media_duration(self) -> float | None:

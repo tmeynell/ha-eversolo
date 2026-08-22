@@ -162,6 +162,18 @@ class EversoloPlayback:
     # streaming block's raw ``audioBitrate`` int when there is no disc to ask.
     bitrate: str | int | None = None
     channels: int | None = None
+    # ``playingMusic.formIcon`` — a source *badge* (e.g. "this is Spotify
+    # Connect"), not album art. Read only on the branches ``from_state``
+    # already trusts ``playingMusic`` for (#16): real captures show it
+    # tracking the audible source live on those, but on Bluetooth it holds
+    # whatever the CD/streaming screen last set, unrelated to what's audible.
+    # ``formIconTv`` (#16 also named it) is not read at all: every capture
+    # carries it alongside ``formIcon`` as a same-badge, differently-styled
+    # asset for the device's own TV-connected output — HA has no equivalent
+    # rendering context of its own (an ``entity_picture`` always renders in
+    # whatever client the viewer is on), so there is nothing here for the TV
+    # variant to be more correct for. See RESEARCH.md's 2026-08-22 entry.
+    form_icon: str | None = None
 
     @property
     def is_playing(self) -> bool:
@@ -270,16 +282,29 @@ class EversoloPlayback:
             source_artist = _first(bt.get("audioArtist"), audio.get("artistName"))
             source_album = _first(bt.get("audioAlbum"), audio.get("albumName"))
             source_art = None
+            # Not ``music.get("formIcon")``: real BT captures show it holding
+            # a leftover CD/streaming nav icon, never a Bluetooth badge of its
+            # own (#16) — the same staleness ``music`` itself gets guarded
+            # against above, restated explicitly here since a BT capture with
+            # no disc ever loaded (``extension`` never "cd") would slip past
+            # that guard.
+            source_form_icon = None
         elif play_type == 5:
             source_title = music.get("title")
             source_artist = music.get("artist")
             source_album = music.get("album")
             source_art = music.get("albumArt")
+            source_form_icon = music.get("formIcon")
         else:
             source_title = audio.get("songName")
             source_artist = audio.get("artistName")
             source_album = audio.get("albumName")
             source_art = info.get("icon")
+            # Verified live across captures (#16): unlike the rest of
+            # ``music``, this field is not stuck on a stale disc even when
+            # the block otherwise still names one (see
+            # ``getstate_spotify_disc_loaded.json``).
+            source_form_icon = music.get("formIcon")
 
         return cls(
             title=_first(source_title),
@@ -329,6 +354,7 @@ class EversoloPlayback:
                 _as_measurement(audio.get("audioChannels")),
                 _as_measurement(output.get("outPutChannels")),
             ),
+            form_icon=_first(source_form_icon),
         )
 
 
@@ -545,6 +571,10 @@ class EversoloVolume:
     is_muted: bool = False
     display: str | None = None
     input_tag: str | None = None
+    # The device's own icon for whichever input ``input_tag`` names, e.g. a
+    # BT/XMOS/EARC glyph. Rides the same ``volumeData`` block, so it moves in
+    # step with the live input rather than trailing a settings-tier write.
+    input_icon: str | None = None
     is_enabled: bool = True
 
     @property
@@ -576,6 +606,8 @@ class EversoloVolume:
             is_muted=bool(data.get("isMute", False)),
             display=data.get("display"),
             input_tag=data.get("intputTag"),
+            # Device spells it "intputIcon" (sic), same typo as "intputTag".
+            input_icon=data.get("intputIcon"),
             is_enabled=bool(data.get("isVolumeEnable", True)),
         )
 

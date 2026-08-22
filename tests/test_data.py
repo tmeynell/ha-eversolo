@@ -65,6 +65,9 @@ def test_playback_parses_a_genuine_cd_state() -> None:
     assert playback.art_url is None
     assert playback.song_id == 128670077
     assert playback.music_type == 4
+    assert playback.form_icon == (
+        "/SystemSettings/getItemSettingIcon?iconName=musicplay_nav_cd.png"
+    )
 
 
 def test_is_local_source_follows_playtype_not_extension() -> None:
@@ -101,6 +104,26 @@ def test_playback_parses_bluetooth_state() -> None:
     # A2DP/AVRCP carries no cover, and the capture's own icon is empty.
     assert playback.art_url is None
     assert playback.codec == "AAC"
+    # #16: the capture's own ``playingMusic.formIcon`` reads a leftover CD
+    # icon here, not a Bluetooth badge — never surfaced on this branch.
+    assert playback.form_icon is None
+
+
+def test_form_icon_is_never_trusted_for_bluetooth() -> None:
+    """#16: Bluetooth has no badge of its own, so ``formIcon`` is never read.
+
+    Built by hand with ``extension`` cleared, unlike the fixture test above —
+    that capture's own stale "cd" extension already blanks ``playingMusic``
+    via the disc-staleness guard, which would hide this branch's own explicit
+    exclusion. This isolates the two: even with the guard unable to fire,
+    Bluetooth still never reads ``formIcon``.
+    """
+    state = fixture_json("getstate_bluetooth.json")
+    state["playingMusic"]["extension"] = ""
+
+    playback = EversoloPlayback.from_state(state)
+
+    assert playback.form_icon is None
 
 
 def test_playback_parses_streaming_state() -> None:
@@ -112,6 +135,33 @@ def test_playback_parses_streaming_state() -> None:
     assert playback.sample_rate == 44100
     assert playback.bit_depth == 16
     assert playback.format_label == "FLAC 44.1kHz/16bit"
+    assert playback.form_icon == (
+        "/SystemSettings/getItemSettingIcon?iconName=musicplay_nav_spottfycnt_v2.png"
+    )
+
+
+def test_form_icon_tracks_the_audible_source_not_the_stale_disc() -> None:
+    """#16: unlike title/artist, ``formIcon`` is not stuck on the tray's disc.
+
+    The spotify-disc-loaded capture's raw ``playingMusic`` block still names
+    a disc (superseded by ``playType``'s dispatch, #02) — but its own
+    ``formIcon`` already reads the Spotify Connect badge, proving the device
+    updates this one field live even while the rest of the block is stale.
+    """
+    playback = EversoloPlayback.from_state(
+        fixture_json("getstate_spotify_disc_loaded.json")
+    )
+
+    assert playback.form_icon == (
+        "/SystemSettings/getItemSettingIcon?iconName=musicplay_nav_spottfycnt_v2.png"
+    )
+
+
+def test_form_icon_is_blanked_with_the_rest_of_a_stale_disc() -> None:
+    """On eARC the disc-staleness guard blanks the whole block, icon included."""
+    playback = EversoloPlayback.from_state(fixture_json("getstate_earc.json"))
+
+    assert playback.form_icon is None
 
 
 def test_playback_on_the_tv_input_is_inert() -> None:
@@ -276,6 +326,7 @@ def test_volume_parses_and_scales() -> None:
     assert volume.maximum == 200
     assert volume.is_muted is False
     assert volume.input_tag == "XMOS-XMOS"
+    assert volume.input_icon == "/SystemSettings/getItemSettingIcon?iconName=XMOS.png"
     assert volume.level == 127 / 200
 
 

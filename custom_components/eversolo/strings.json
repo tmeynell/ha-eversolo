@@ -94,6 +94,9 @@
         "sensor": {
             "audio_format": {
                 "name": "Audio format"
+            },
+            "input": {
+                "name": "Input"
             }
         },
         "switch": {
