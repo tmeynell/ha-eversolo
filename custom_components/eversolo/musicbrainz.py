@@ -143,13 +143,20 @@ class EversoloMusicBrainzClient:
         genuine, cacheable answer. Raises :class:`_LookupUnavailable` on a
         comms failure, same distinction as :meth:`_async_search_release`.
 
+        Requests the ``-500`` thumbnail, not the bare ``front`` redirect —
+        the latter resolves to the community-uploaded original, which can be
+        tens of megabytes (confirmed live: a 30 MB PNG that a mobile media
+        card gave up trying to render, showing blank rather than broken).
+        Cover Art Archive serves ``-250``/``-500``/``-1200`` thumbnails
+        specifically to avoid this.
+
         Not throttled: MusicBrainz's rate-limiting policy gates the search
         step alone, and Cover Art Archive has no limit of its own.
         """
         try:
             async with asyncio.timeout(_REQUEST_TIMEOUT):
                 response = await self._session.get(
-                    f"{COVER_ART_ARCHIVE_URL}/{mbid}/front",
+                    f"{COVER_ART_ARCHIVE_URL}/{mbid}/front-500",
                     allow_redirects=False,
                 )
         except (aiohttp.ClientError, TimeoutError) as exception:

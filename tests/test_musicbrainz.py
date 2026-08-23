@@ -32,7 +32,7 @@ async def test_lookup_resolves_the_cover_art_archive_redirect(
     """A matched release whose cover art archive front redirects is the cover."""
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
     aioclient_mock.get(
-        f"{COVER_ART_ARCHIVE_URL}/mbid-1/front",
+        f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500",
         status=307,
         headers={"Location": "https://coverartarchive.org/release/mbid-1/123.jpg"},
     )
@@ -53,7 +53,7 @@ async def test_search_query_never_includes_the_release_clause(
     search into a confidently wrong top-scored result.
     """
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
-    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", status=404)
+    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500", status=404)
 
     await _client(hass).async_lookup_cover("Andy Compton", "Nifanyeje", "The Rurals")
 
@@ -68,7 +68,7 @@ async def test_search_query_drops_the_release_clause_without_an_album(
 ) -> None:
     """Same query shape whether or not ``audioAlbum`` is empty."""
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
-    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", status=404)
+    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500", status=404)
 
     await _client(hass).async_lookup_cover("Andy Compton", "Nifanyeje", None)
 
@@ -81,7 +81,7 @@ async def test_search_sends_the_required_user_agent(
 ) -> None:
     """MusicBrainz's policy requires a proper contact-carrying User-Agent."""
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
-    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", status=404)
+    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500", status=404)
 
     await _client(hass).async_lookup_cover("Andy Compton", "Nifanyeje", None)
 
@@ -105,7 +105,7 @@ async def test_no_front_cover_picked_returns_none(
 ) -> None:
     """A matched release with no community front cover is "no cover"."""
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
-    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", status=404)
+    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500", status=404)
 
     cover = await _client(hass).async_lookup_cover("Andy Compton", "Nifanyeje", None)
 
@@ -128,7 +128,7 @@ async def test_a_cover_art_archive_error_returns_none_rather_than_raising(
 ) -> None:
     """Same degrade-quietly guarantee on the second call of the pair."""
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
-    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", exc=TimeoutError())
+    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500", exc=TimeoutError())
 
     cover = await _client(hass).async_lookup_cover("Andy Compton", "Nifanyeje", None)
 
@@ -178,7 +178,7 @@ async def test_a_different_track_is_not_served_from_another_tracks_cache(
 ) -> None:
     """The cache key is the full (artist, title, album) tuple."""
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
-    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", status=404)
+    aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500", status=404)
     client = _client(hass)
 
     await client.async_lookup_cover("Andy Compton", "Nifanyeje", None)
