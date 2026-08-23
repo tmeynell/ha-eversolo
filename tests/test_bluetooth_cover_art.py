@@ -40,7 +40,7 @@ def _bluetooth_state() -> dict:
 def _mock_found_cover(aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json={"releases": [{"id": "mbid-1"}]})
     aioclient_mock.get(
-        f"{COVER_ART_ARCHIVE_URL}/mbid-1/front",
+        f"{COVER_ART_ARCHIVE_URL}/mbid-1/front-500",
         status=307,
         headers={"Location": COVER_URL},
     )
