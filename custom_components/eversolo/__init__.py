@@ -8,10 +8,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import format_mac
+from homeassistant.loader import async_get_integration
 
 from .api import EversoloApiClient, EversoloApiClientError
-from .const import DEFAULT_PORT, LOGGER, NAME
+from .const import DEFAULT_PORT, DOMAIN, LOGGER, MUSICBRAINZ_CONTACT_URL, NAME
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
+from .musicbrainz import EversoloMusicBrainzClient
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -96,6 +98,21 @@ async def _async_read_unique_id(hass: HomeAssistant, host: str) -> str | None:
     return format_mac(device.net_mac) if device.net_mac else None
 
 
+async def _async_build_musicbrainz_client(
+    hass: HomeAssistant,
+) -> EversoloMusicBrainzClient:
+    """Build the (possibly unused) MusicBrainz client with its required User-Agent.
+
+    Built unconditionally — it is cheap, and the coordinator is what decides
+    per cycle whether the entry's options actually call it (#18). The
+    User-Agent carries this integration's own version and a contact URL, both
+    required by MusicBrainz's rate-limiting policy for the search step.
+    """
+    integration = await async_get_integration(hass, DOMAIN)
+    user_agent = f"ha-eversolo/{integration.version} ( {MUSICBRAINZ_CONTACT_URL} )"
+    return EversoloMusicBrainzClient(async_get_clientsession(hass), user_agent)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: EversoloConfigEntry) -> bool:
     """Set up this integration using UI."""
     coordinator = EversoloDataUpdateCoordinator(
@@ -108,6 +125,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EversoloConfigEntry) -> 
             port=DEFAULT_PORT,
             session=async_get_clientsession(hass),
         ),
+        musicbrainz_client=await _async_build_musicbrainz_client(hass),
     )
 
     # A unit that is off keeps its entry: entities either wait for the device

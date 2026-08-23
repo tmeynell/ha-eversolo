@@ -143,9 +143,15 @@ unit cannot be added twice. If its IP changes, use `Reconfigure` on the existing
 entry to point it at the new address and keep your entities and automations;
 reconfigure refuses an address that turns out to be a different device.
 
-Polling is fixed and there is no options flow: live state (playback, volume,
-input) is read every 5 seconds, and the settings tier (brightness, styles,
-routing, the toggles) every 30 seconds and again immediately after any write.
+Polling is fixed: live state (playback, volume, input) is read every 5
+seconds, and the settings tier (brightness, styles, routing, the toggles)
+every 30 seconds and again immediately after any write.
+
+The one thing that is configurable, via `Configure` on the integration entry,
+is an off-by-default option to look up cover art on MusicBrainz and the Cover
+Art Archive for Bluetooth playback — the only source the device itself never
+supplies art for. It is the only network traffic this integration ever sends
+off your local network, so it stays off unless you turn it on.
 
 ## Known limitations
 

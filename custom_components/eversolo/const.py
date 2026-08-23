@@ -37,6 +37,11 @@ PROCESSING_GATE_CYCLES = 6
 CD_SOURCE = "CD"
 INPUT_INTERNAL_PLAYER = "XMOS"
 
+# Top-level ``playType`` for Bluetooth — see ``EversoloPlayback.from_state``.
+# The only source ``from_state`` never gives a cover for, hence the one the
+# optional MusicBrainz lookup (#18) targets.
+PLAY_TYPE_BLUETOOTH = 4
+
 # The power menu's tag for the screen. ``setPowerOption?tag=screen`` toggles the
 # front display, and the tag appearing in ``getPowerOption`` is the only thing
 # that says the unit has a screen to switch — nothing anywhere reports whether
@@ -75,3 +80,18 @@ SETTING_TAG_SPECTRUM_MODE = "SettingsItemTagSpPlayMode"
 # The subwoofer's own on/off lives one level down, inside the sub-page
 # ``SETTING_TAG_SUBWOOFER`` points at, not in the main tree.
 SETTING_TAG_SUBWOOFER_SWITCH = "SettingsItemTagSubSwitchEnable"
+
+# Options-flow key for the MusicBrainz/Cover Art Archive Bluetooth cover-art
+# lookup (#18). Off by default: unlike every other read in this integration,
+# enabling it sends the current track's artist/title/album off-LAN.
+CONF_ENABLE_MUSICBRAINZ_LOOKUP = "enable_musicbrainz_lookup"
+
+# MusicBrainz's own search API and Cover Art Archive's per-release front-cover
+# redirect, per https://musicbrainz.org/doc/MusicBrainz_API and
+# https://musicbrainz.org/doc/Cover_Art_Archive/API. Only the search step is
+# rate-limited by MusicBrainz's policy; Cover Art Archive has none of its own.
+MUSICBRAINZ_SEARCH_URL = "https://musicbrainz.org/ws/2/release"
+COVER_ART_ARCHIVE_URL = "https://coverartarchive.org/release"
+MUSICBRAINZ_CONTACT_URL = "https://github.com/tmeynell/ha-eversolo"
+# MusicBrainz declines outright above ~1 request/second average per IP.
+MUSICBRAINZ_MIN_REQUEST_INTERVAL = 1.0
