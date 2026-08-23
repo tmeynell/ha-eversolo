@@ -52,6 +52,14 @@
                 "name": "Reboot"
             }
         },
+        "image": {
+            "spectrum_style_preview": {
+                "name": "{option} preview"
+            },
+            "vu_style_preview": {
+                "name": "{option} preview"
+            }
+        },
         "number": {
             "knob_brightness": {
                 "name": "Knob brightness"

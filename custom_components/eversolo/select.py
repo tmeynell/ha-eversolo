@@ -29,6 +29,7 @@ from .data import (
     EversoloOption,
     EversoloOptionList,
     EversoloVisualizationMode,
+    read_option_list,
 )
 from .entity import EversoloEntity, async_add_capability_gated
 
@@ -46,11 +47,6 @@ class EversoloSelectDescription(SelectEntityDescription):
     write: Callable[
         [EversoloApiClient, EversoloOptionList, EversoloOption], Awaitable[None]
     ]
-
-
-def _listed(key: str) -> Callable[[EversoloData], EversoloOptionList]:
-    """Read one of the settings tier's list payloads."""
-    return lambda data: EversoloOptionList.from_payload(data.settings.get(key))
 
 
 async def _write_listed(
@@ -82,7 +78,7 @@ ENTITY_DESCRIPTIONS: tuple[EversoloSelectDescription, ...] = (
         icon="mdi:sine-wave",
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_analog_panel,
-        read=_listed("dac_filter_state"),
+        read=read_option_list("dac_filter_state"),
         write=_write_listed,
     ),
     EversoloSelectDescription(
@@ -91,7 +87,7 @@ ENTITY_DESCRIPTIONS: tuple[EversoloSelectDescription, ...] = (
         icon="mdi:chart-timeline-variant",
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_analog_panel,
-        read=_listed("upsampling_state"),
+        read=read_option_list("upsampling_state"),
         write=_write_listed,
     ),
     EversoloSelectDescription(
@@ -100,7 +96,7 @@ ENTITY_DESCRIPTIONS: tuple[EversoloSelectDescription, ...] = (
         icon="mdi:clock-outline",
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_master_clock,
-        read=_listed("master_clock_state"),
+        read=read_option_list("master_clock_state"),
         write=_write_listed,
     ),
     EversoloSelectDescription(
@@ -109,7 +105,7 @@ ENTITY_DESCRIPTIONS: tuple[EversoloSelectDescription, ...] = (
         icon="mdi:gauge-low",
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_vu_style,
-        read=_listed("vu_mode_state"),
+        read=read_option_list("vu_mode_state"),
         write=_write_listed,
     ),
     EversoloSelectDescription(
@@ -118,7 +114,7 @@ ENTITY_DESCRIPTIONS: tuple[EversoloSelectDescription, ...] = (
         icon="mdi:chart-histogram",
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_spectrum_style,
-        read=_listed("spectrum_mode_state"),
+        read=read_option_list("spectrum_mode_state"),
         write=_write_listed,
     ),
     EversoloSelectDescription(
@@ -127,7 +123,7 @@ ENTITY_DESCRIPTIONS: tuple[EversoloSelectDescription, ...] = (
         icon="mdi:palette",
         entity_category=EntityCategory.CONFIG,
         is_supported=lambda capabilities: capabilities.has_knob_color,
-        read=_listed("knob_color_state"),
+        read=read_option_list("knob_color_state"),
         # The one write that does not come off the list response: only the A6
         # has a knob, so there is no capture showing whether that list carries
         # a ``url``, and this path is verified on real hardware. See

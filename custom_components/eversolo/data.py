@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Any
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 
 from .const import (
     INPUT_INTERNAL_PLAYER,
@@ -697,6 +697,11 @@ class EversoloOption:
     title: str
     index: int
     tag: str | None = None
+    # The device's own thumbnail for this choice, e.g. a VU meter style
+    # preview (``getItemSettingIcon?iconName=...``) — not the mdi glyph name
+    # a select's own ``EversoloSelectDescription.icon`` carries, hence the
+    # different field name (#17).
+    preview_path: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -746,7 +751,11 @@ class EversoloOptionList:
                 continue
             index = _as_int(item.get("index"))
             options.append(
-                EversoloOption(title=title, index=position if index is None else index)
+                EversoloOption(
+                    title=title,
+                    index=position if index is None else index,
+                    preview_path=item.get("icon") or None,
+                )
             )
 
         return cls(
@@ -795,6 +804,19 @@ class EversoloOptionList:
             options=tuple(options),
             current_index=_as_int(payload.get("outputIndex")),
         )
+
+
+def read_option_list(key: str) -> Callable[[EversoloData], EversoloOptionList]:
+    """Return a reader for one of the settings tier's list payloads.
+
+    Shared by every platform that reads a plain ``/SystemSettings/`` list
+    straight off ``EversoloData.settings`` (select's ``dac_filter``,
+    ``upsampling``, ``master_clock``, ``vu_style``, ``spectrum_style`` and
+    ``knob_color``; image's per-option previews) — the two things that differ
+    between lists, the setter and whether it needs special output-list
+    handling, are the caller's problem, not this one.
+    """
+    return lambda data: EversoloOptionList.from_payload(data.settings.get(key))
 
 
 @dataclass(frozen=True, slots=True)

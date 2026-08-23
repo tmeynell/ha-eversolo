@@ -426,6 +426,26 @@ def test_an_option_list_carries_its_own_setter() -> None:
     )
 
 
+def test_an_option_carries_its_own_preview_path() -> None:
+    """The VU style list's ``icon`` field, not the select's mdi glyph (#17)."""
+    options = EversoloOptionList.from_payload(fixture_json("getvumodelist.json"))
+
+    first = options.by_title("VU meter 1")
+    assert (
+        first.preview_path
+        == "/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default05.png"
+    )
+
+
+def test_an_option_with_no_icon_field_has_no_preview_path() -> None:
+    """A list that never carries ``icon`` (the DAC filter's) offers nothing to preview."""
+    options = EversoloOptionList.from_payload(
+        fixture_json("getxlroutputpcmfilterlist.json")
+    )
+
+    assert all(option.preview_path is None for option in options.options)
+
+
 def test_an_unread_option_list_is_empty_not_a_crash() -> None:
     """A list the device has not answered for yet offers nothing."""
     options = EversoloOptionList.from_payload(None)
