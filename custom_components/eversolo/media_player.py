@@ -32,6 +32,7 @@ from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
+    MediaType,
 )
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
@@ -244,6 +245,17 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
     def media_artist(self) -> str | None:
         """Artist of current playing media."""
         return self._playback.artist
+
+    @property
+    def media_content_type(self) -> MediaType | None:
+        """Content type of current playing media.
+
+        Frontend media cards (``hui-media-control-card``) only render the
+        artist subtitle for a handful of ``media_content_type`` values —
+        without this, the artist is present in state/more-info but never
+        drawn on the card itself.
+        """
+        return MediaType.MUSIC if self._playback.title else None
 
     @property
     def media_album_name(self) -> str | None:
