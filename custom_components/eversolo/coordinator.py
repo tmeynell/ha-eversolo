@@ -47,9 +47,11 @@ from .api import (
     EversoloApiClientError,
 )
 from .const import (
+    CONF_ENABLE_MUSICBRAINZ_LOOKUP,
     DOMAIN,
     LIVE_UPDATE_INTERVAL,
     LOGGER,
+    PLAY_TYPE_BLUETOOTH,
     PROCESSING_GATE_CYCLES,
     SETTINGS_REFRESH_CYCLES,
 )
@@ -57,8 +59,12 @@ from .data import (
     EversoloCapabilities,
     EversoloData,
     EversoloDevice,
+    EversoloPlayback,
     EversoloProcessing,
 )
+from .musicbrainz import EversoloMusicBrainzClient
+
+type BluetoothTrack = tuple[str, str, str | None]
 
 type EversoloConfigEntry = ConfigEntry[EversoloDataUpdateCoordinator]
 
@@ -136,9 +142,17 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         hass: HomeAssistant,
         config_entry: EversoloConfigEntry,
         client: EversoloApiClient,
+        musicbrainz_client: EversoloMusicBrainzClient,
     ) -> None:
         """Initialize."""
         self.client = client
+        self._musicbrainz = musicbrainz_client
+        # The Bluetooth (artist, title, album) a cover lookup was last fired
+        # for, and what it found — None/None until a lookup has ever run.
+        # Both reset together so a resolving lookup can never be shown against
+        # the track that has since replaced it.
+        self._bluetooth_track: BluetoothTrack | None = None
+        self._bluetooth_cover_url: str | None = None
         # Identity and capabilities come from one profile read but latch
         # separately: identity is final as soon as it lands, while the DSP and
         # EQ gates wait for a getState that reports them.
@@ -171,6 +185,16 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         if self._device is not None:
             return self._device
         return EversoloDevice()
+
+    @property
+    def bluetooth_cover_url(self) -> str | None:
+        """The cover MusicBrainz found for the live Bluetooth track, if any.
+
+        ``None`` both before a lookup has run and once it has run and found
+        nothing — the media player (#18) cannot tell those apart, and does
+        not need to: either way there is no image to show.
+        """
+        return self._bluetooth_cover_url
 
     @property
     def capabilities_settled(self) -> bool:
@@ -212,6 +236,7 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
             # the device for the same payload again.
             await self._async_read_profile(data.processing)
         self._settle_capability_gates(data.processing)
+        self._maybe_lookup_bluetooth_cover(data.playback)
 
         self._cycles_since_settings += 1
         if self._cycles_since_settings >= SETTINGS_REFRESH_CYCLES:
@@ -305,6 +330,60 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
 
         self._capabilities = self._capabilities.with_processing(self._processing_seen)
         self._gates_settled = True
+
+    @callback
+    def _maybe_lookup_bluetooth_cover(self, playback: EversoloPlayback) -> None:
+        """Fire an off-device cover lookup for a Bluetooth track HA hasn't seen.
+
+        Off unless the entry's options opt in (#18) — this is the one thing
+        this integration ever sends off the local network. Only Bluetooth
+        (``play_type == 4``) has no cover of its own to fall back to; every
+        other source either has real art or a device-local id to fetch it by.
+
+        Firing is gated on the ``(artist, title, album)`` tuple changing, not
+        on a poll cycle passing — the client caches the query itself, but
+        without this gate every 5 s cycle would still pay for the cache
+        lookup and, worse, would re-arm the throttle wait on an unretired
+        track already answered.
+        """
+        if not self.config_entry.options.get(CONF_ENABLE_MUSICBRAINZ_LOOKUP, False):
+            return
+        if (
+            playback.play_type != PLAY_TYPE_BLUETOOTH
+            or not playback.artist
+            or not playback.title
+        ):
+            return
+
+        track: BluetoothTrack = (playback.artist, playback.title, playback.album)
+        if track == self._bluetooth_track:
+            return
+
+        self._bluetooth_track = track
+        # Cleared rather than left showing the previous track's art while the
+        # new lookup is in flight — a stale cover is worse than none.
+        self._bluetooth_cover_url = None
+        # Tied to the config entry, not the bare event loop: a reload or
+        # unload while a lookup is in flight cancels it along with everything
+        # else the entry owns, rather than letting it complete against a
+        # coordinator nothing is listening to anymore.
+        self.config_entry.async_create_background_task(
+            self.hass,
+            self._async_resolve_bluetooth_cover(track),
+            name=f"{DOMAIN} musicbrainz cover lookup",
+        )
+
+    async def _async_resolve_bluetooth_cover(self, track: BluetoothTrack) -> None:
+        """Look up one Bluetooth track's cover and publish it, if still current."""
+        artist, title, album = track
+        cover = await self._musicbrainz.async_lookup_cover(artist, title, album)
+
+        if self._bluetooth_track != track:
+            # A newer track has already taken over; this answer arrived too
+            # late to mean anything and must not overwrite its cover.
+            return
+        self._bluetooth_cover_url = cover
+        self.async_update_listeners()
 
     @callback
     def _async_update_device_registry(self) -> None:

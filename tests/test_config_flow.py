@@ -18,7 +18,7 @@ from homeassistant.helpers.device_registry import format_mac
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
-from custom_components.eversolo.const import DOMAIN
+from custom_components.eversolo.const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DOMAIN
 
 from .helpers import HOST, PORT, fixture_json
 
@@ -270,9 +270,66 @@ async def test_reconfigure_adopts_an_entry_that_has_no_identity(
     assert entry.data == {CONF_HOST: OTHER_HOST}
 
 
-async def test_no_options_flow_and_no_reauth_step(hass: HomeAssistant) -> None:
-    """Poll intervals are fixed design and there are no credentials to renew."""
+async def test_no_reauth_step(hass: HomeAssistant) -> None:
+    """There are no credentials to renew."""
     handler = config_entries.HANDLERS[DOMAIN]
 
     assert not hasattr(handler, "async_step_reauth")
-    assert not handler.async_supports_options_flow(_existing_entry())
+
+
+async def test_options_flow_defaults_musicbrainz_lookup_off(
+    hass: HomeAssistant,
+) -> None:
+    """The one option this integration has starts disabled (#18)."""
+    entry = _existing_entry()
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+
+    assert result["type"] is data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "init"
+    schema = result["data_schema"].schema
+    (default,) = (
+        field.default() for field in schema if field == CONF_ENABLE_MUSICBRAINZ_LOOKUP
+    )
+    assert default is False
+
+
+async def test_options_flow_saves_the_musicbrainz_lookup_toggle(
+    hass: HomeAssistant,
+) -> None:
+    """Enabling the toggle persists it onto the entry's options."""
+    entry = _existing_entry()
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert entry.options == {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
+
+
+async def test_options_flow_reopens_showing_what_was_saved(
+    hass: HomeAssistant,
+) -> None:
+    """The form suggests the entry's current option, not the bare default."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: HOST},
+        unique_id=UNIQUE_ID,
+        options={CONF_ENABLE_MUSICBRAINZ_LOOKUP: True},
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+
+    schema = result["data_schema"].schema
+    (suggested,) = (
+        field.description["suggested_value"]
+        for field in schema
+        if field == CONF_ENABLE_MUSICBRAINZ_LOOKUP
+    )
+    assert suggested is True

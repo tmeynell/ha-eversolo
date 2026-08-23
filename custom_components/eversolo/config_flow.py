@@ -14,7 +14,12 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
@@ -22,10 +27,14 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import format_mac
 
 from .api import EversoloApiClient, EversoloApiClientCommunicationError
-from .const import DEFAULT_PORT, DOMAIN, LOGGER, NAME
+from .const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DEFAULT_PORT, DOMAIN, LOGGER, NAME
 from .data import EversoloDevice
 
 STEP_DATA_SCHEMA = vol.Schema({vol.Required(CONF_HOST): cv.string})
+
+OPTIONS_SCHEMA = vol.Schema(
+    {vol.Optional(CONF_ENABLE_MUSICBRAINZ_LOOKUP, default=False): cv.boolean}
+)
 
 # Eversolo's DMP-A line — the DMP-A8 (Gen 1/2) this integration targets, plus the
 # other A-series models the capability gates still serve with a reduced entity
@@ -51,6 +60,14 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
     """Handle the manual-IP setup and reconfigure flows."""
 
     VERSION = 3
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> EversoloOptionsFlowHandler:
+        """Hand back the options flow for an already-configured entry."""
+        return EversoloOptionsFlowHandler()
 
     async def async_step_user(
         self,
@@ -148,3 +165,26 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
             return None, {"base": "unsupported_model"}
 
         return device, {}
+
+
+class EversoloOptionsFlowHandler(OptionsFlow):
+    """The one option this integration has: the MusicBrainz cover-art lookup.
+
+    Off by default (#18) — enabling it is a real behaviour change from the
+    LAN-only polling model every other read in this integration keeps to, so
+    it is a deliberate opt-in rather than a silent default.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show, and save, the single MusicBrainz opt-in toggle."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, self.config_entry.options
+            ),
+        )

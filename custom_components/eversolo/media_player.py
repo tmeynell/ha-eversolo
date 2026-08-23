@@ -36,7 +36,7 @@ from homeassistant.components.media_player import (
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
-from .const import CD_SOURCE, INPUT_INTERNAL_PLAYER, LOGGER
+from .const import CD_SOURCE, INPUT_INTERNAL_PLAYER, LOGGER, PLAY_TYPE_BLUETOOTH
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import EversoloInput, EversoloPlayback, EversoloVolume
 from .entity import EversoloEntity
@@ -264,10 +264,19 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         set for Bluetooth (see ``EversoloPlayback.from_state``), but better
         than nothing on a local disc with no embedded cover or a streaming
         track its service sent no art for.
+
+        Bluetooth is the one exception to that chain (#18): the device gives
+        it no art at all, ever, so the fallback is not another device field
+        but whatever the coordinator's opt-in MusicBrainz lookup last found
+        for this exact track — ``None`` while that lookup is off, still
+        running, or came back empty, same as the device's own "nothing" would
+        read.
         """
         playback = self._playback
         client = self.coordinator.client
 
+        if playback.play_type == PLAY_TYPE_BLUETOOTH:
+            return self.coordinator.bluetooth_cover_url
         if playback.art_url:
             if playback.art_url.startswith("http"):
                 return playback.art_url
@@ -277,6 +286,20 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
                 playback.song_id, playback.music_type
             )
         return client.create_image_url_or_none(playback.form_icon)
+
+    @property
+    def media_image_remotely_accessible(self) -> bool:
+        """True only for the Bluetooth cover MusicBrainz found (#18).
+
+        Every other image this entity ever returns is served by the device
+        itself over the LAN, which needs HA's own proxy/auth in front of it —
+        the default this property falls back to otherwise. A Cover Art
+        Archive URL is a real internet address with nothing to proxy.
+        """
+        return (
+            self._playback.play_type == PLAY_TYPE_BLUETOOTH
+            and self.coordinator.bluetooth_cover_url is not None
+        )
 
     @property
     def media_duration(self) -> float | None:

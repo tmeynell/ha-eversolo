@@ -90,10 +90,17 @@ def _cd() -> dict:
     return {GET_STATE: {"json": fixture_json("getstate_cd.json")}}
 
 
-async def _player(hass: HomeAssistant, aioclient_mock, overrides=None) -> str:
+def _bluetooth() -> dict:
+    """Override the seam with a Bluetooth track actually playing (playType 4)."""
+    return {GET_STATE: {"json": fixture_json("getstate_bluetooth.json")}}
+
+
+async def _player(
+    hass: HomeAssistant, aioclient_mock, overrides=None, options=None
+) -> str:
     """Set the integration up and return the media_player's entity_id."""
     prime_device(aioclient_mock, overrides)
-    await setup_integration(hass)
+    await setup_integration(hass, options=options)
     return entity_id_for(hass, "_media_player")
 
 

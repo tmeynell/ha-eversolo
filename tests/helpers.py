@@ -254,7 +254,9 @@ def query_of(mocker: AiohttpClientMocker, path: str) -> dict[str, str]:
     return queries[-1]
 
 
-async def setup_integration(hass: HomeAssistant) -> MockConfigEntry:
+async def setup_integration(
+    hass: HomeAssistant, options: dict[str, Any] | None = None
+) -> MockConfigEntry:
     """Set the integration up against whatever the seam is primed with."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -262,6 +264,7 @@ async def setup_integration(hass: HomeAssistant) -> MockConfigEntry:
         title="Eversolo DMP-A8 Gen 2",
         data={CONF_HOST: HOST},
         unique_id=UNIQUE_ID,
+        options=options or {},
     )
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
