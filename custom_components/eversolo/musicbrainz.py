@@ -92,23 +92,27 @@ class EversoloMusicBrainzClient:
         self, artist: str, title: str, album: str | None
     ) -> str | None:
         """Search for a release, then resolve its front cover, if either exists."""
-        mbid = await self._async_search_release(artist, title, album)
+        mbid = await self._async_search_release(artist, title)
         if mbid is None:
             return None
         return await self._async_front_cover(mbid)
 
-    async def _async_search_release(
-        self, artist: str, title: str, album: str | None
-    ) -> str | None:
+    async def _async_search_release(self, artist: str, title: str) -> str | None:
         """Return the best-matching release's MBID, or None on a genuine no-match.
 
         Raises :class:`_LookupUnavailable` if the step could not be completed
         at all — comms failure, or a body that isn't the JSON object the API
         promises — which is not the same thing and must not be cached as one.
         """
+        # Album is deliberately never part of the query, even when known:
+        # Bluetooth's ``audioAlbum`` (the only source this ever runs against)
+        # is not reliably a real album name — a live capture returned junk
+        # caption text (" O'Flynn - Video Available") for a track that has no
+        # album at all, and folding that into a ``release:`` clause returned
+        # a confidently wrong top-scored release rather than no match. It
+        # still lives in the cache key (below), since it's still part of
+        # what makes a track distinct, just not searched on.
         query = f"artist:{artist} AND recording:{title}"
-        if album:
-            query = f"artist:{artist} AND release:{album} AND recording:{title}"
 
         await self._async_throttle()
         try:
