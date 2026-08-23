@@ -20,10 +20,12 @@ nothing to authenticate.
 
 It supports Eversolo's DMP-A line (DMP-A6, DMP-A8, DMP-A10 and other A-series models).
 Every entity is gated on what the device itself reports it has, so entity sets
-vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested.** A
-device that does not identify itself as a DMP-A model is refused during setup.
-Other Eversolo lines (PLAY, T8/T10, the DAC-Z series) aren't admitted — not ruled
-out by design, just unverified: there's no hardware available yet to confirm they
+vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested.**
+Eversolo's PLAY and T series (T8/T10) streamers likely speak the same on-device
+API and would probably work too, but setup currently only admits a device that
+identifies itself as a DMP-A model — a device that doesn't is refused. The
+DAC-Z series is unverified either way. Widening admission to PLAY/T series is
+tracked but not yet done, since there's no hardware available to confirm they
 share the DMP-A entity shape.
 
 ### Entities
