@@ -79,12 +79,17 @@ and Spectrum. An automation has to use the values — `state: "VU meter"` will
 never match. This is the only select where the two differ: every other one
 offers option labels the device itself supplies, and those are used as-is.
 
-**The Screen switch assumes its state rather than reading it back.** We
-haven't found a device field that reports whether the front display is lit, so
-the switch just remembers what it last asked for, across restarts. Blank the
-screen at the unit itself and the switch won't notice — its next press will be
-one step out of phase. Screen brightness and Visualization aren't affected;
-the device reports both directly.
+**The Screen switch assumes its state rather than reading it back.** No field
+the device reports says whether the front display is lit, so the switch just
+remembers what it last asked for, across restarts. Blank the screen at the unit
+itself and the switch won't notice — its next press will be one step out of
+phase. Screen brightness and Visualization aren't affected; the device reports
+both directly.
+
+The device does report the screen's state, but only as the *label* on its power
+menu — "Screen off" while lit, "Screen on" while blanked — rendered in the
+device's own UI locale. Reading it would mean matching translated text, so the
+switch doesn't, yet.
 
 **Two entities carry a device-supplied icon as `entity_picture`, fetched
 straight from the device over plain `http://`** — the Input sensor (always,
