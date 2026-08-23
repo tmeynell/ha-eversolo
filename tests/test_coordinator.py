@@ -60,6 +60,7 @@ async def test_both_tiers_land_in_runtime_data(
     assert {entity.domain for entity in entities} == {
         "binary_sensor",
         "button",
+        "image",
         "media_player",
         "number",
         "select",

@@ -19,6 +19,8 @@ def async_add_capability_gated(
     coordinator: EversoloDataUpdateCoordinator,
     async_add_entities: AddEntitiesCallback,
     build: Callable[[EversoloCapabilities], Iterable[Entity]],
+    *,
+    keep_watching: Callable[[], bool] | None = None,
 ) -> None:
     """Add the entities this unit's hardware justifies, as it admits to them.
 
@@ -36,6 +38,16 @@ def async_add_capability_gated(
     that is not already present — until the coordinator reports the gates
     settled and nothing further can appear.
 
+    ``keep_watching`` covers a narrower, independent race: a ``build`` whose
+    output depends on the settings tier (a per-*option* platform, not a fixed
+    one-entity-per-capability platform) can still be waiting on a settings key
+    that has not been fetched even once — e.g. because the setup-time profile
+    read itself failed its first attempt, which defers that key's first fetch
+    past the cycle the DSP/EQ gates happen to settle on. Passed, this is
+    consulted alongside ``capabilities_settled``, so this keeps listening
+    until ``build`` has nothing further to add *and* whatever data it depends
+    on has actually arrived — not just until the unrelated DSP/EQ gates say so.
+
     Growth only, never shrinkage: an entity already added is never removed if a
     later reading disagrees. Entities vanishing under a running Home Assistant
     is its own class of problem, and a gate that has answered once is a
@@ -45,19 +57,31 @@ def async_add_capability_gated(
 
     @callback
     def _add_newly_justified() -> None:
-        """Create whatever the current capabilities justify and we lack."""
+        """Create whatever the current capabilities justify and we lack.
+
+        Deduplicated against ``added`` from earlier calls *and* within this
+        call's own output — a ``build`` that ever yielded two entities sharing
+        a unique_id (device data carrying a repeated index, say) would
+        otherwise hand ``async_add_entities`` a batch with a collision.
+        """
         if (capabilities := coordinator.data.capabilities) is None:
             return
-        fresh = [
-            entity for entity in build(capabilities) if entity.unique_id not in added
-        ]
-        if not fresh:
-            return
-        added.update(entity.unique_id for entity in fresh)
-        async_add_entities(fresh)
+        fresh = []
+        for entity in build(capabilities):
+            if entity.unique_id in added:
+                continue
+            added.add(entity.unique_id)
+            fresh.append(entity)
+        if fresh:
+            async_add_entities(fresh)
+
+    def _done_watching() -> bool:
+        return coordinator.capabilities_settled and (
+            keep_watching is None or not keep_watching()
+        )
 
     _add_newly_justified()
-    if coordinator.capabilities_settled:
+    if _done_watching():
         return
 
     remove_listener: Callable[[], None] | None = None
@@ -73,7 +97,7 @@ def async_add_capability_gated(
     @callback
     def _on_update() -> None:
         _add_newly_justified()
-        if coordinator.capabilities_settled:
+        if _done_watching():
             _stop_waiting()
 
     remove_listener = coordinator.async_add_listener(_on_update)

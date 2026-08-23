@@ -36,6 +36,7 @@ share the DMP-A entity shape.
 | Button        | Power off            | Turns off device (only on units that report they accept it)                  |
 | Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it) |
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
+| Image         | {option} preview     | One per VU/spectrum style option, e.g. "VU meter 3 preview" (only on units with that style list) |
 | Number        | Knob brightness      | Knob brightness, 0–100% (only on units with a knob)                           |
 | Number        | Screen brightness    | Front display brightness, 0–100%                                              |
 | Select        | DAC filter           | Reconstruction filter for the analog outputs (only on units with that panel)  |
@@ -90,6 +91,13 @@ real cover art to show, the media player's now-playing picture (a small
 source badge, not album art; never used on Bluetooth, which has no badge of
 its own). Home Assistant's browser handling of mixed content applies if your
 own UI is served over `https://`.
+
+**The style-preview Image entities show what each VU/spectrum option looks
+like, not which one is selected** — that is still the `VU style`/`Spectrum
+style` select's job. Home Assistant has no widget that binds several
+thumbnails to one select, so pairing these with the select on a dashboard
+(e.g. a `picture-elements` card tapping `select.select_option`) is left to
+you.
 
 **Power is symmetric on units that report `ableRemoteBoot`.** The media
 player's `turn_on`/`turn_off` and the Power On/Off buttons drive the same two

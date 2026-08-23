@@ -16,6 +16,7 @@ survive someone changing how names are produced.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +27,14 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
 
-from custom_components.eversolo import binary_sensor, button, number, select, switch
+from custom_components.eversolo import (
+    binary_sensor,
+    button,
+    image,
+    number,
+    select,
+    switch,
+)
 from custom_components.eversolo.data import EversoloVisualizationMode
 
 from .helpers import prime_device, setup_integration
@@ -40,6 +48,7 @@ EN = COMPONENT_DIR / "translations" / "en.json"
 DESCRIBED_PLATFORMS = (
     ("binary_sensor", binary_sensor.ENTITY_DESCRIPTIONS),
     ("button", button.ENTITY_DESCRIPTIONS),
+    ("image", image.ENTITY_DESCRIPTIONS),
     ("number", number.ENTITY_DESCRIPTIONS),
     ("select", select.ENTITY_DESCRIPTIONS),
     ("switch", switch.ENTITY_DESCRIPTIONS),
@@ -151,11 +160,21 @@ async def test_every_entity_name_comes_from_the_translations(
     entry = await setup_integration(hass)
     device_name = entry.title
 
-    known = {
+    all_names = {
         strings["name"]
         for platform in _load(STRINGS)["entity"].values()
         for strings in platform.values()
     }
+    # Most names are literal. A few — the per-option image entities — carry a
+    # ``{option}`` placeholder filled in per instance with the device's own
+    # option title, so those are matched as a pattern instead of a literal.
+    known_exact = {name for name in all_names if "{" not in name}
+    known_patterns = [
+        re.compile("^" + re.escape(name).replace(r"\{option\}", ".+") + "$")
+        for name in all_names
+        if "{" in name
+    ]
+
     resolved = {
         state.entity_id: state.attributes.get("friendly_name")
         for state in hass.states.async_all()
@@ -169,6 +188,10 @@ async def test_every_entity_name_comes_from_the_translations(
     assert resolved[media_players[0]] == device_name
 
     prefix = f"{device_name} "
+
+    def _known(rest: str) -> bool:
+        return rest in known_exact or any(p.match(rest) for p in known_patterns)
+
     unresolved = {
         entity_id: name
         for entity_id, name in resolved.items()
@@ -176,7 +199,7 @@ async def test_every_entity_name_comes_from_the_translations(
         and (
             name is None
             or not name.startswith(prefix)
-            or name.removeprefix(prefix) not in known
+            or not _known(name.removeprefix(prefix))
         )
     }
     assert not unresolved

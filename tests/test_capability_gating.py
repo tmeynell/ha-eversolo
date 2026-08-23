@@ -62,6 +62,18 @@ from .helpers import (
 
 GET_KNOB_COLOR = "/SystemSettings/displaySettings/getKnobLightColorList"
 
+# One preview-image entity per option the captures list, keyed the way
+# ``EversoloOptionPreviewImage`` builds its unique id — device ``index``, which
+# these two fixtures happen to number the same as list position.
+VU_STYLE_PREVIEWS = tuple(
+    ("image", f"_vu_style_preview_{option['index']}")
+    for option in fixture_json("getvumodelist.json")["data"]
+)
+SPECTRUM_STYLE_PREVIEWS = tuple(
+    ("image", f"_spectrum_style_preview_{option['index']}")
+    for option in fixture_json("getspplaymodelist.json")["data"]
+)
+
 # A knob-bearing unit, which only the A6 is, so no capture shows one. Two
 # shapes: a plain knob, and a knob whose light takes a colour.
 KNOB_ONLY = {
@@ -183,12 +195,12 @@ GATES: tuple[Gate, ...] = (
     ),
     Gate(
         capability="has_vu_style",
-        entities=(("select", "_vu_style"),),
+        entities=(("select", "_vu_style"), *VU_STYLE_PREVIEWS),
         absent={GET_SYSTEM_SETTINGS: {"json": settings_without(SETTING_TAG_VU_MODE)}},
     ),
     Gate(
         capability="has_spectrum_style",
-        entities=(("select", "_spectrum_style"),),
+        entities=(("select", "_spectrum_style"), *SPECTRUM_STYLE_PREVIEWS),
         absent={
             GET_SYSTEM_SETTINGS: {"json": settings_without(SETTING_TAG_SPECTRUM_MODE)}
         },
@@ -204,8 +216,14 @@ GATES: tuple[Gate, ...] = (
             }
         },
         # The one mutation that must take other entities with it: there is no
-        # tree without both style lists that still has either style select.
-        also_absent=(("select", "_vu_style"), ("select", "_spectrum_style")),
+        # tree without both style lists that still has either style select —
+        # or their preview images, which the same two tags gate.
+        also_absent=(
+            ("select", "_vu_style"),
+            ("select", "_spectrum_style"),
+            *VU_STYLE_PREVIEWS,
+            *SPECTRUM_STYLE_PREVIEWS,
+        ),
     ),
     Gate(
         # Not in the settings tree at all — the socket list is its own gate.
@@ -306,6 +324,8 @@ A8_ENTITY_SET = {
     ("select", "_vu_style"),
     ("select", "_spectrum_style"),
     ("select", "_visualization"),
+    *VU_STYLE_PREVIEWS,
+    *SPECTRUM_STYLE_PREVIEWS,
     ("switch", "_cd_auto_play"),
     ("switch", "_subwoofer_output"),
     ("switch", "_gapless"),
@@ -397,7 +417,7 @@ async def test_a_capability_the_device_has_creates_its_entities(
 async def test_the_captured_a8_gets_exactly_the_designed_entity_set(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """The unmutated capture yields the 18 entities, and nothing else.
+    """The unmutated capture yields the designed entity set, and nothing else.
 
     The live acceptance run counts this set by eye on the real unit. An entity
     that appears here and not on the checklist — or the other way round — is
