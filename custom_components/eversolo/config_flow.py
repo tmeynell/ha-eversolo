@@ -11,6 +11,7 @@ as the unit moves between its wired, WiFi, and SFP interfaces.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse
 
 import voluptuous as vol
 
@@ -25,6 +26,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
 from .api import EversoloApiClient, EversoloApiClientCommunicationError
 from .const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DEFAULT_PORT, DOMAIN, LOGGER, NAME
@@ -116,6 +118,39 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
                 )
 
         return self._show_host_form("reconfigure", user_input or entry.data, errors)
+
+    async def async_step_ssdp(
+        self, discovery_info: SsdpServiceInfo
+    ) -> ConfigFlowResult:
+        """Adopt a device the manifest's SSDP matcher found.
+
+        The matcher only proves a Platinum/Plutinosoft UPnP MediaRenderer
+        answered — that embedded SDK isn't Eversolo-specific, so the same
+        ``getModel`` admission check ``async_step_user`` applies is what
+        actually confirms an Eversolo DMP is behind it. No entry is created
+        from the SSDP identity alone.
+        """
+        location = discovery_info.ssdp_location
+        host = urlparse(location).hostname if location else None
+        if host is None:
+            return self.async_abort(reason="cannot_connect")
+
+        device, errors = await self._async_probe(host)
+        if device is None:
+            return self.async_abort(reason=errors["base"])
+
+        await self.async_set_unique_id(format_mac(device.net_mac))
+        # Unlike the manual-entry path, SSDP re-fires on its own whenever the
+        # device is up — the exact "moved between wired/WiFi/SFP" case this
+        # module's docstring anchors on net_mac for. Passing the freshly
+        # discovered host here lets that rediscovery heal a stale entry
+        # instead of just reporting it configured and leaving it stranded.
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+
+        return self.async_create_entry(
+            title=f"{NAME} {device.model}",
+            data={CONF_HOST: host},
+        )
 
     @callback
     def _show_host_form(

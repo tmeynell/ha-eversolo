@@ -15,6 +15,11 @@ from homeassistant import config_entries, data_entry_flow
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.service_info.ssdp import (
+    ATTR_UPNP_DEVICE_TYPE,
+    ATTR_UPNP_MANUFACTURER,
+    SsdpServiceInfo,
+)
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
@@ -25,6 +30,24 @@ from .helpers import HOST, PORT, fixture_json
 NET_MAC = "aa:bb:cc:00:00:01"
 UNIQUE_ID = format_mac(NET_MAC)
 OTHER_HOST = "192.168.0.61"
+
+# What the manifest's ssdp matcher requires — the generic Platinum/Plutinosoft
+# UPnP identity, not anything Eversolo-specific (#19).
+SSDP_MANUFACTURER = "Plutinosoft LLC"
+SSDP_DEVICE_TYPE = "urn:schemas-upnp-org:device:MediaRenderer:1"
+
+
+def _ssdp_discovery(host: str = HOST) -> SsdpServiceInfo:
+    """Build the discovery payload HA's ssdp integration would hand the flow."""
+    return SsdpServiceInfo(
+        ssdp_usn=f"uuid:{host}::urn:schemas-upnp-org:device:MediaRenderer:1",
+        ssdp_st=SSDP_DEVICE_TYPE,
+        ssdp_location=f"http://{host}:1900/description.xml",
+        upnp={
+            ATTR_UPNP_MANUFACTURER: SSDP_MANUFACTURER,
+            ATTR_UPNP_DEVICE_TYPE: SSDP_DEVICE_TYPE,
+        },
+    )
 
 
 def _mock_getmodel(
@@ -187,6 +210,131 @@ async def test_cannot_connect_is_recoverable(
 
     assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"] == {CONF_HOST: HOST}
+
+
+async def test_ssdp_discovery_creates_entry_for_a_genuine_eversolo(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A real Eversolo answering the manifest's SSDP matcher gets adopted.
+
+    The SSDP identity alone (Platinum/Plutinosoft, generic MediaRenderer) is
+    not enough — the flow still hits ``getModel`` on 9529 before creating the
+    entry, same anchor as the manual path (#19).
+    """
+    _mock_getmodel(aioclient_mock)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["data"] == {CONF_HOST: HOST}
+    assert result["result"].unique_id == UNIQUE_ID
+
+
+async def test_ssdp_discovery_of_a_non_eversolo_device_is_rejected(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The Platinum SDK is generic — a non-Eversolo hit fails admission.
+
+    Manufacturer/deviceType alone can't tell an Eversolo apart from any other
+    Zidoo-lineage box embedding the same UPnP SDK; ``getModel`` rejecting the
+    model string aborts the flow instead of creating a broken entry.
+    """
+    _mock_getmodel(aioclient_mock, model="Z9X", disModel="Z9X", deviceName="Z9X")
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+
+    assert result["type"] is data_entry_flow.FlowResultType.ABORT
+    assert result["reason"] == "unsupported_model"
+
+
+async def test_ssdp_discovery_of_an_unreachable_host_aborts(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A discovered address that refuses the ``getModel`` probe aborts too."""
+    aioclient_mock.get(
+        f"http://{HOST}:{PORT}/ControlCenter/getModel",
+        exc=aiohttp.ClientError("refused"),
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+
+    assert result["type"] is data_entry_flow.FlowResultType.ABORT
+    assert result["reason"] == "cannot_connect"
+
+
+async def test_ssdp_discovery_of_an_already_configured_device_aborts(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The same net_mac discovered again does not duplicate the entry."""
+    _existing_entry().add_to_hass(hass)
+    _mock_getmodel(aioclient_mock)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+
+    assert result["type"] is data_entry_flow.FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
+async def test_ssdp_rediscovery_at_a_new_host_heals_the_entry(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A configured device rediscovered at a new address updates in place.
+
+    Unlike a manual add, SSDP fires on its own whenever the unit is up — the
+    same "moved between wired/WiFi/SFP" case ``net_mac`` anchoring exists
+    for. Rediscovery should heal a stale host, not just report it configured.
+    """
+    entry = _existing_entry()
+    entry.add_to_hass(hass)
+    _mock_getmodel(aioclient_mock, host=OTHER_HOST)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(host=OTHER_HOST),
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is data_entry_flow.FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data == {CONF_HOST: OTHER_HOST}
+
+
+async def test_ssdp_discovery_without_a_location_aborts(hass: HomeAssistant) -> None:
+    """A malformed discovery with no address to probe can't be adopted."""
+    discovery_info = _ssdp_discovery()
+    discovery_info = SsdpServiceInfo(
+        ssdp_usn=discovery_info.ssdp_usn,
+        ssdp_st=discovery_info.ssdp_st,
+        ssdp_location=None,
+        upnp=discovery_info.upnp,
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=discovery_info,
+    )
+
+    assert result["type"] is data_entry_flow.FlowResultType.ABORT
+    assert result["reason"] == "cannot_connect"
 
 
 async def test_reconfigure_follows_device_to_new_host(
