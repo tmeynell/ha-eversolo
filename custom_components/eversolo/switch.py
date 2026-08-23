@@ -165,12 +165,21 @@ class EversoloScreenSwitch(EversoloEntity, SwitchEntity, RestoreEntity):
     — it is the power menu's ``screen`` action, the same call the Reboot and
     Power Off buttons use with a different tag — and **no field the device
     reports says whether the screen is lit**. Not ``getState``, not the
-    settings tree. (The power menu carries a label, "Screen off", which an
-    earlier design read as a state by matching it against a hard-coded
-    list of seven localised strings. Whether that label actually flips with
-    the screen was never verified, and it is not a field; #18 found no field
-    anywhere.) So there is nothing to confirm a write against and no refresh
-    to make: the switch shows what it last asked for.
+    settings tree.
+
+    The device does nonetheless report the state, in a place that is not a
+    field: ``getPowerOption``'s ``screen`` entry carries a *label*, and the
+    firmware computes it per request from the system property
+    ``zidoo.close.screen.mode`` — "Screen off" while lit, "Screen on" while
+    blanked. Confirmed 2026-08-23 by blanking the screen at the front panel
+    and watching the value flip, so it is a real read-back and not a client
+    remembering itself. An earlier design read exactly this label, matching it
+    against a hard-coded list of seven localised strings, and was removed as
+    unverified; the label was right, the way of reading it is the problem.
+    That string is the *only* exposure of the property anywhere in the API,
+    and it is rendered in the device's own UI locale — so reading it means a
+    string-compare against localised text. Until that is solved this switch
+    stays on its own memory rather than guessing from a translation.
 
     Three things follow, and each is deliberate:
 
