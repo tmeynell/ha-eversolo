@@ -29,7 +29,9 @@
         "abort": {
             "already_configured": "This Eversolo device is already configured.",
             "wrong_device": "That address is a different Eversolo device. Reconfigure only follows the existing device to a new address; to set up a different unit, add it as a new entry.",
-            "reconfigure_successful": "Reconfiguration was successful."
+            "reconfigure_successful": "Reconfiguration was successful.",
+            "cannot_connect": "Unable to connect to the server.",
+            "unsupported_model": "That address answered, but the device is not a supported Eversolo DMP model."
         }
     },
     "options": {
