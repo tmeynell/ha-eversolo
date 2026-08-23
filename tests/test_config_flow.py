@@ -31,9 +31,11 @@ NET_MAC = "aa:bb:cc:00:00:01"
 UNIQUE_ID = format_mac(NET_MAC)
 OTHER_HOST = "192.168.0.61"
 
-# What the manifest's ssdp matcher requires — the generic Platinum/Plutinosoft
-# UPnP identity, not anything Eversolo-specific (#19).
-SSDP_MANUFACTURER = "Plutinosoft LLC"
+# What the manifest's ssdp matcher requires — from the A8's actual
+# description.xml <manufacturer> tag, confirmed against the real device (#19
+# regression: "Plutinosoft LLC" was a guess from modelDescription/modelURL
+# and never matched real SSDP traffic).
+SSDP_MANUFACTURER = "EVERSOLO"
 SSDP_DEVICE_TYPE = "urn:schemas-upnp-org:device:MediaRenderer:1"
 
 

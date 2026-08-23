@@ -13,7 +13,7 @@
   ],
   "ssdp": [
     {
-      "manufacturer": "Plutinosoft LLC",
+      "manufacturer": "EVERSOLO",
       "deviceType": "urn:schemas-upnp-org:device:MediaRenderer:1"
     }
   ],
