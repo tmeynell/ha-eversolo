@@ -42,10 +42,16 @@ async def test_lookup_resolves_the_cover_art_archive_redirect(
     assert cover == "https://coverartarchive.org/release/mbid-1/123.jpg"
 
 
-async def test_search_query_includes_album_when_known(
+async def test_search_query_never_includes_the_release_clause(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """Artist+title+album is the primary key when the album is known."""
+    """Album is deliberately never searched on, even when known.
+
+    Bluetooth's ``audioAlbum`` is the only source this ever runs against, and
+    it is not reliably a real album name — a live capture returned junk
+    caption text for a track with no album at all, which corrupted the
+    search into a confidently wrong top-scored result.
+    """
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
     aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", status=404)
 
@@ -53,14 +59,14 @@ async def test_search_query_includes_album_when_known(
 
     query = aioclient_mock.mock_calls[0][1].query["query"]
     assert "artist:Andy Compton" in query
-    assert "release:The Rurals" in query
+    assert "release:" not in query
     assert "recording:Nifanyeje" in query
 
 
 async def test_search_query_drops_the_release_clause_without_an_album(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """Falls back to artist+title alone when ``audioAlbum`` is empty."""
+    """Same query shape whether or not ``audioAlbum`` is empty."""
     aioclient_mock.get(MUSICBRAINZ_SEARCH_URL, json=_search_ok("mbid-1"))
     aioclient_mock.get(f"{COVER_ART_ARCHIVE_URL}/mbid-1/front", status=404)
 
