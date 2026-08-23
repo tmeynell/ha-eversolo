@@ -22,3 +22,5 @@ config/*
 
 # Virtual environment for dev
 .venv/
+# throwaway spike venv (prototype/screen-mirror-spike branch)
+.venv-spike/
