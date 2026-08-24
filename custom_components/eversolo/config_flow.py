@@ -38,6 +38,11 @@ OPTIONS_SCHEMA = vol.Schema(
     {vol.Optional(CONF_ENABLE_MUSICBRAINZ_LOOKUP, default=False): cv.boolean}
 )
 
+# The manual-add form: the host field plus the same MusicBrainz opt-in the
+# Options flow offers post-setup, so a user can turn it on in one trip instead
+# of a separate visit through Settings → Options afterward.
+STEP_USER_DATA_SCHEMA = STEP_DATA_SCHEMA.extend(OPTIONS_SCHEMA.schema)
+
 # Eversolo's DMP-A line — the DMP-A8 (Gen 1/2) this integration targets, plus the
 # other A-series models the capability gates still serve with a reduced entity
 # set. A box that doesn't call itself a DMP-A is rejected outright: anything else
@@ -86,9 +91,14 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title=f"{NAME} {device.model}",
                     data={CONF_HOST: user_input[CONF_HOST]},
+                    options={
+                        CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
+                            CONF_ENABLE_MUSICBRAINZ_LOOKUP
+                        ]
+                    },
                 )
 
-        return self._show_host_form("user", user_input, errors)
+        return self._show_host_form("user", STEP_USER_DATA_SCHEMA, user_input, errors)
 
     async def async_step_reconfigure(
         self,
@@ -117,7 +127,9 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
                     data_updates={CONF_HOST: user_input[CONF_HOST]},
                 )
 
-        return self._show_host_form("reconfigure", user_input or entry.data, errors)
+        return self._show_host_form(
+            "reconfigure", STEP_DATA_SCHEMA, user_input or entry.data, errors
+        )
 
     async def async_step_ssdp(
         self, discovery_info: SsdpServiceInfo
@@ -156,15 +168,14 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
     def _show_host_form(
         self,
         step_id: str,
+        schema: vol.Schema,
         suggested: dict[str, Any] | None,
         errors: dict[str, str],
     ) -> ConfigFlowResult:
         """Show a host form, keeping whatever the user last typed."""
         return self.async_show_form(
             step_id=step_id,
-            data_schema=self.add_suggested_values_to_schema(
-                STEP_DATA_SCHEMA, suggested or {}
-            ),
+            data_schema=self.add_suggested_values_to_schema(schema, suggested or {}),
             errors=errors,
         )
 

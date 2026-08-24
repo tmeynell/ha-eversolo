@@ -105,14 +105,36 @@ async def test_user_flow_creates_entry_anchored_to_net_mac(
     assert result["result"].unique_id == UNIQUE_ID
 
 
-async def test_user_form_asks_for_host_only(hass: HomeAssistant) -> None:
+async def test_user_form_asks_for_host_and_musicbrainz_toggle(
+    hass: HomeAssistant,
+) -> None:
     """No port and no credentials fields — the API is unauthenticated on 9529."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
 
     keys = {str(key) for key in result["data_schema"].schema}
-    assert keys == {CONF_HOST}
+    assert keys == {CONF_HOST, CONF_ENABLE_MUSICBRAINZ_LOOKUP}
+
+
+async def test_user_flow_enables_musicbrainz_lookup_when_checked(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Checking the toggle during add creates the entry with it already on."""
+    _mock_getmodel(aioclient_mock)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {CONF_HOST: HOST, CONF_ENABLE_MUSICBRAINZ_LOOKUP: True},
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["data"] == {CONF_HOST: HOST}
+    assert result["options"] == {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
 
 
 async def test_second_add_of_same_device_aborts(
