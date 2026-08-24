@@ -23,6 +23,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .api import EversoloApiClient
 from .const import (
+    SETTING_TAG_AUTO_CHANGE_SOURCE,
     SETTING_TAG_CD_AUTO_PLAY,
     SETTING_TAG_EOS_ENGINE,
     SETTING_TAG_GAPLESS,
@@ -80,6 +81,15 @@ ENTITY_DESCRIPTIONS: tuple[EversoloSwitchDescription, ...] = (
         setting_tag=SETTING_TAG_EOS_ENGINE,
         is_supported=lambda capabilities: capabilities.has_eos_engine,
         write=lambda client, enabled: client.async_set_eos_engine(enabled),
+    ),
+    EversoloSwitchDescription(
+        key="auto_change_source_internal_player",
+        translation_key="auto_change_source_internal_player",
+        icon="mdi:swap-horizontal",
+        entity_category=EntityCategory.CONFIG,
+        setting_tag=SETTING_TAG_AUTO_CHANGE_SOURCE,
+        is_supported=lambda capabilities: capabilities.has_auto_change_source,
+        write=lambda client, enabled: client.async_set_auto_change_source(enabled),
     ),
 )
 

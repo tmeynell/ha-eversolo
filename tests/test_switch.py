@@ -21,6 +21,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.eversolo.const import (
     SETTINGS_REFRESH_CYCLES,
+    SETTING_TAG_AUTO_CHANGE_SOURCE,
     SETTING_TAG_CD_AUTO_PLAY,
     SETTING_TAG_GAPLESS,
     SETTING_TAG_SUBWOOFER,
@@ -31,6 +32,7 @@ from .helpers import (
     GET_STATE,
     GET_SUB_OUTPUT,
     GET_SYSTEM_SETTINGS,
+    SET_AUTO_CHANGE_SOURCE,
     SET_CD_AUTO_PLAY,
     SET_EOS_ENGINE,
     SET_GAPLESS,
@@ -297,6 +299,56 @@ async def test_a_unit_without_a_subwoofer_output_never_gets_the_switch(
         if "subwoofer" in entity_id
     ]
     assert calls_to(aioclient_mock, GET_SUB_OUTPUT) == 0
+
+
+async def test_auto_change_source_reads_its_state_from_the_tree(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Auto Change Source is on in the capture."""
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+
+    entity_id = entity_id_for(hass, "_auto_change_source_internal_player")
+    assert hass.states.get(entity_id).state == STATE_ON
+
+
+async def test_auto_change_source_writes_its_own_endpoint(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """It has its own setter, distinct from the other tree toggles."""
+    writes: list[dict[str, str]] = []
+    prime_device(aioclient_mock, {SET_AUTO_CHANGE_SOURCE: records_writes(writes)})
+    await setup_integration(hass)
+
+    await hass.services.async_call(
+        SWITCH_DOMAIN,
+        SERVICE_TURN_OFF,
+        {ATTR_ENTITY_ID: entity_id_for(hass, "_auto_change_source_internal_player")},
+        blocking=True,
+    )
+
+    assert writes == [{"switch": "0"}]
+
+
+async def test_a_unit_without_auto_change_source_never_gets_the_switch(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Tag presence is the capability signal, one toggle at a time."""
+    prime_device(
+        aioclient_mock,
+        {
+            GET_SYSTEM_SETTINGS: {
+                "json": settings_without(SETTING_TAG_AUTO_CHANGE_SOURCE)
+            }
+        },
+    )
+    await setup_integration(hass)
+
+    assert not [
+        entity_id
+        for entity_id in hass.states.async_entity_ids(SWITCH_DOMAIN)
+        if "auto_change_source" in entity_id
+    ]
 
 
 async def test_a_unit_without_gapless_never_gets_the_switch(

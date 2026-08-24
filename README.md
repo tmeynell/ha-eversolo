@@ -51,6 +51,7 @@ share the DMP-A entity shape.
 | Select        | VU style             | Selects between the VU meter styles the device lists                          |
 | Sensor        | Audio format         | Diagnostic: current stream quality, e.g. `PCM 44.1kHz/16bit`                  |
 | Sensor        | Input                | The live input's name, with the device's own icon as its picture              |
+| Switch        | Auto-switch source (Internal Player) | Switches input to the Internal Player when built-in playback or Connect starts (not Bluetooth In) |
 | Switch        | CD auto play         | Starts a disc as soon as it is inserted (only on units with a CD drive)       |
 | Switch        | EOS engine           | Eversolo's original sampling-rate audio engine                                |
 | Switch        | Gapless playback     | Plays consecutive tracks without a gap                                        |

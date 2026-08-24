@@ -124,6 +124,9 @@
             }
         },
         "switch": {
+            "auto_change_source_internal_player": {
+                "name": "Auto-switch source (Internal Player)"
+            },
             "cd_auto_play": {
                 "name": "CD auto play"
             },
