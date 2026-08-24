@@ -156,6 +156,100 @@ async def test_the_picture_is_restamped_when_the_current_choice_moves(
     assert entity.image_last_updated > first_stamp
 
 
+async def test_current_selection_preview_resolves_the_devices_current_index(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The current-selection entity's picture is the *selected* option's icon.
+
+    The captured fixture has ``currentIndex: 10`` (VU meter 11) — distinct
+    from the fixed ``_0`` option the other tests pin down, so this cannot
+    pass by accident of always looking at the first option.
+    """
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+
+    entity_id = entity_id_for(hass, "_vu_style_current_preview")
+    entity = entity_object(hass, entity_id)
+
+    assert (
+        entity.image_url
+        == f"{BASE_URL}/SystemSettings/getItemSettingIcon?iconName=t10_setting_uv_default10.png"
+    )
+    assert entity.image_last_updated is not None
+
+
+async def test_current_selection_preview_moves_when_the_selection_changes(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """A re-poll reporting a new ``currentIndex`` swaps the picture and restamps."""
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+    entity = entity_object(hass, entity_id_for(hass, "_vu_style_current_preview"))
+    first_stamp = entity.image_last_updated
+    assert entity.image_url is not None
+    assert entity.image_url.endswith("t10_setting_uv_default10.png")
+
+    moved = fixture_json("getvumodelist.json")
+    moved["currentIndex"] = 0
+    aioclient_mock.clear_requests()
+    prime_device(
+        aioclient_mock,
+        {"/SystemSettings/displaySettings/getVUModeList": {"json": moved}},
+    )
+
+    await advance_cycles(hass, freezer, 6)
+
+    assert entity.image_url is not None
+    assert entity.image_url.endswith("t10_setting_uv_default05.png")
+    assert entity.image_last_updated is not None
+    assert entity.image_last_updated > first_stamp
+
+
+async def test_current_selection_preview_is_a_noop_when_selection_is_unchanged(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """A poll that reports the same ``currentIndex`` does not re-timestamp."""
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+    entity = entity_object(hass, entity_id_for(hass, "_vu_style_current_preview"))
+    first_stamp = entity.image_last_updated
+    first_url = entity.image_url
+
+    await advance_cycles(hass, freezer, 6)
+
+    assert entity.image_last_updated == first_stamp
+    assert entity.image_url == first_url
+
+
+async def test_one_current_selection_preview_per_supported_list(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Exactly one current-selection entity each for VU and spectrum, not per-option."""
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+
+    assert len(_images_matching(hass, "vu_style_current_preview")) == 1
+    assert len(_images_matching(hass, "spectrum_style_current_preview")) == 1
+
+
+async def test_no_current_selection_previews_when_the_unit_has_no_style_lists(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A unit without the VU/spectrum tags gets no current-selection entity either."""
+    prime_device(
+        aioclient_mock,
+        {
+            GET_SYSTEM_SETTINGS: {
+                "json": settings_without(SETTING_TAG_VU_MODE, SETTING_TAG_SPECTRUM_MODE)
+            }
+        },
+    )
+    await setup_integration(hass)
+
+    assert not _images_matching(hass, "vu_style_current_preview")
+    assert not _images_matching(hass, "spectrum_style_current_preview")
+
+
 async def test_previews_still_appear_if_the_profile_read_first_fails(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
 ) -> None:
