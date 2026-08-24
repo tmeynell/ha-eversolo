@@ -38,6 +38,7 @@ share the DMP-A entity shape.
 | Button        | Power off            | Turns off device (only on units that report they accept it)                  |
 | Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it) |
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
+| Image         | Panel screenshot     | Live capture of the front panel (native 1600x600), refreshed every 60 s      |
 | Image         | {option} preview     | One per VU/spectrum style option, e.g. "VU meter 3 preview" (only on units with that style list) |
 | Number        | Knob brightness      | Knob brightness, 0–100% (only on units with a knob)                           |
 | Number        | Screen brightness    | Front display brightness, 0–100%                                              |

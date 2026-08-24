@@ -15,13 +15,21 @@ re-poll both key on (see ``EversoloOption.index``).
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import timedelta
 
 from dataclasses import dataclass
 
-from homeassistant.components.image import ImageEntity, ImageEntityDescription
+from homeassistant.components.image import (
+    ImageEntity,
+    ImageEntityDescription,
+    infer_image_type,
+)
 from homeassistant.const import EntityCategory
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
+from .api import EversoloApiClientError
+from .const import SCREENSHOT_REFRESH_INTERVAL
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import (
     EversoloCapabilities,
@@ -117,6 +125,12 @@ async def async_setup_entry(hass, entry: EversoloConfigEntry, async_add_devices)
     """Set up the Image platform."""
     coordinator = entry.runtime_data
 
+    # Unconditional, unlike the option previews below: every unit with a
+    # front panel answers ``getScreenShot`` one way or another (a PNG, or the
+    # firmware's own error body), and the entity treats the latter as "no
+    # picture yet" rather than needing a capability to gate on.
+    async_add_devices([EversoloPanelScreenshotImage(coordinator)])
+
     async_add_capability_gated(
         coordinator,
         async_add_devices,
@@ -191,3 +205,74 @@ class EversoloOptionPreviewImage(EversoloEntity, ImageEntity):
             option = self._option
             self._set_image_url(option.preview_path if option else None)
         super()._handle_coordinator_update()
+
+
+class EversoloPanelScreenshotImage(EversoloEntity, ImageEntity):
+    """The device's front panel, captured live as a PNG (#37).
+
+    Unlike ``EversoloOptionPreviewImage``, the picture behind this entity
+    genuinely changes over time and the device offers no push for it — the
+    only way to get a fresh frame is to poll ``getScreenShot`` again. This
+    keeps its own timer for that, independent of the coordinator: a fetch is
+    ~500 KB and ~0.65 s live-measured, both too heavy for the 5 s live tier
+    (``SCREENSHOT_REFRESH_INTERVAL``, ``const.py``).
+
+    It also bypasses the base ``ImageEntity``'s own ``image_url``/httpx fetch
+    path entirely, fetching through the coordinator's aiohttp session instead
+    (``async_image`` below). Two reasons: that keeps it on the same mocked-HTTP
+    seam every other call in this integration is tested against, and the
+    device answers a missing endpoint with HTTP 200 and a JSON error body
+    rather than an error status — telling that apart from a real screenshot
+    means reading the actual bytes, not just trusting the response arrived.
+    """
+
+    _attr_translation_key = "panel_screenshot"
+    _attr_icon = "mdi:monitor-screenshot"
+    _attr_content_type = "image/png"
+
+    def __init__(self, coordinator: EversoloDataUpdateCoordinator) -> None:
+        """Initialize the panel-screenshot image."""
+        EversoloEntity.__init__(self, coordinator)
+        ImageEntity.__init__(self, coordinator.hass)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_panel_screenshot"
+        self._attr_image_last_updated = dt_util.utcnow()
+
+    async def async_added_to_hass(self) -> None:
+        """Start the entity's own slow refresh timer."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass,
+                self._async_refresh,
+                timedelta(seconds=SCREENSHOT_REFRESH_INTERVAL),
+            )
+        )
+
+    async def _async_refresh(self, _now: object = None) -> None:
+        """Bump the timestamp so the frontend refetches on its next look.
+
+        Nothing here fetches the picture itself — ``async_image`` does that,
+        lazily, whenever something actually asks for it (a dashboard card, the
+        ``/api/image_proxy`` view). This only forces that ask to happen again,
+        on a cadence independent of whether anything is currently watching.
+        """
+        self._attr_image_last_updated = dt_util.utcnow()
+        self.async_write_ha_state()
+
+    async def async_image(self) -> bytes | None:
+        """Fetch a fresh screenshot, or None if the device didn't hand one back.
+
+        Covers the device being off or unreachable (the client raises, caught
+        here) and firmware without ``getScreenShot`` (a 200 whose body isn't a
+        PNG) the same way: no picture this round, no exception, no entity
+        state flipped to unavailable — the frontend just keeps showing
+        whatever it last had, same as any other camera-like entity between
+        frames.
+        """
+        try:
+            content = await self.coordinator.client.async_get_screenshot()
+        except EversoloApiClientError:
+            return None
+        if infer_image_type(content) != "image/png":
+            return None
+        return content

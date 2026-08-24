@@ -60,6 +60,7 @@ DESCRIBED_PLATFORMS = (
 # ``test_every_entity_name_comes_from_the_translations``, which reads the names
 # off entities HA has actually set up and does not consult this list at all.
 STANDALONE_KEYS = {
+    "image": ("panel_screenshot",),
     "select": ("visualization",),
     "sensor": ("audio_format", "input"),
     "switch": ("screen",),

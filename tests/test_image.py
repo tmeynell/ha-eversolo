@@ -1,21 +1,30 @@
-"""Image tests: per-option thumbnails for the VU/spectrum style pickers (#17).
+"""Image tests: style-picker thumbnails (#17) and the panel screenshot (#37).
 
-Static content, dynamic timestamp: the picture behind an option never changes,
-so the one thing worth pinning down is that the URL resolves against the
-device host, and that ``image_last_updated`` moves only when the list's
-current choice does — not on every settings poll.
+The option previews are static content, dynamic timestamp: the picture behind
+an option never changes, so the one thing worth pinning down there is that the
+URL resolves against the device host, and that ``image_last_updated`` moves
+only when the list's current choice does — not on every settings poll.
+
+The panel screenshot is the opposite: the picture genuinely changes, so its
+own tests cover the actual fetch — the success path, the firmware-lacks-it
+error-body path, and a device that is simply unreachable — plus its own,
+independent refresh timer.
 """
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import (
     AiohttpClientMocker,
 )
 
 from custom_components.eversolo.const import (
+    SCREENSHOT_REFRESH_INTERVAL,
     SETTINGS_REFRESH_CYCLES,
     SETTING_TAG_SPECTRUM_MODE,
     SETTING_TAG_VU_MODE,
@@ -24,6 +33,7 @@ from custom_components.eversolo.const import (
 from .helpers import (
     BASE_URL,
     GET_MODEL,
+    GET_SCREENSHOT,
     GET_SYSTEM_SETTINGS,
     advance_cycles,
     entity_id_for,
@@ -35,6 +45,11 @@ from .helpers import (
 )
 
 IMAGE_DOMAIN = "image"
+
+# Just enough of a PNG for ``infer_image_type`` to recognise it — the entity
+# only sniffs the magic number, it never decodes the image.
+FAKE_PNG = b"\x89PNG\r\n\x1a\nrest-of-a-fake-panel-screenshot"
+SCREENSHOT_ERROR_BODY = {"status": 804, "msg": "Url error"}
 
 
 def _images_matching(hass: HomeAssistant, unique_id_key: str) -> list[str]:
@@ -173,7 +188,11 @@ async def test_previews_still_appear_if_the_profile_read_first_fails(
 async def test_no_preview_images_when_the_unit_has_no_style_lists(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """A unit without the VU/spectrum tags gets no preview images either."""
+    """A unit without the VU/spectrum tags gets no preview images either.
+
+    The panel screenshot is unconditional (#37), so it is still there — this
+    only pins down that the *option* previews are gone.
+    """
     prime_device(
         aioclient_mock,
         {
@@ -184,4 +203,87 @@ async def test_no_preview_images_when_the_unit_has_no_style_lists(
     )
     await setup_integration(hass)
 
-    assert not hass.states.async_entity_ids(IMAGE_DOMAIN)
+    assert not _images_matching(hass, "vu_style_preview")
+    assert not _images_matching(hass, "spectrum_style_preview")
+    assert _images_matching(hass, "panel_screenshot")
+
+
+async def test_panel_screenshot_entity_appears_unconditionally(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The screenshot entity exists from setup, with a stamp already set."""
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+
+    entity_id = entity_id_for(hass, "_panel_screenshot")
+    entity = entity_object(hass, entity_id)
+
+    assert entity.image_last_updated is not None
+    assert entity.content_type == "image/png"
+    state = hass.states.get(entity_id)
+    assert state.attributes["friendly_name"].endswith("Panel screenshot")
+
+
+async def test_panel_screenshot_fetches_the_devices_png(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``async_image`` returns the raw bytes ``getScreenShot`` answered with."""
+    prime_device(aioclient_mock, {GET_SCREENSHOT: {"content": FAKE_PNG}})
+    await setup_integration(hass)
+    entity = entity_object(hass, entity_id_for(hass, "_panel_screenshot"))
+
+    assert await entity.async_image() == FAKE_PNG
+
+
+async def test_panel_screenshot_does_not_surface_the_firmwares_error_body(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Firmware without ``getScreenShot`` answers 200 with a JSON error body.
+
+    That must not come back as "the image", or the frontend would try to
+    render JSON as a picture (#37's acceptance criteria).
+    """
+    prime_device(aioclient_mock, {GET_SCREENSHOT: {"json": SCREENSHOT_ERROR_BODY}})
+    await setup_integration(hass)
+    entity = entity_object(hass, entity_id_for(hass, "_panel_screenshot"))
+
+    assert await entity.async_image() is None
+
+
+async def test_panel_screenshot_degrades_gracefully_when_unreachable(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A device that is off or unreachable yields no picture, not an exception."""
+    prime_device(
+        aioclient_mock,
+        {GET_SCREENSHOT: {"exc": aiohttp.ClientError("device unreachable")}},
+    )
+    await setup_integration(hass)
+    entity = entity_object(hass, entity_id_for(hass, "_panel_screenshot"))
+
+    assert await entity.async_image() is None
+
+
+async def test_panel_screenshot_restamps_on_its_own_timer(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """The timestamp bumps on ``SCREENSHOT_REFRESH_INTERVAL``, not the live tier.
+
+    Nothing here fetches a picture — it only has to force the frontend to ask
+    again, on a cadence independent of the coordinator's own polling.
+    """
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+    entity = entity_object(hass, entity_id_for(hass, "_panel_screenshot"))
+    first_stamp = entity.image_last_updated
+
+    # A handful of live cycles, well short of the screenshot's own interval.
+    await advance_cycles(hass, freezer, 5)
+    assert entity.image_last_updated == first_stamp
+
+    freezer.tick(timedelta(seconds=SCREENSHOT_REFRESH_INTERVAL))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert entity.image_last_updated is not None
+    assert entity.image_last_updated > first_stamp

@@ -17,6 +17,13 @@ DEFAULT_PORT = 9529
 LIVE_UPDATE_INTERVAL = 5
 SETTINGS_REFRESH_CYCLES = 6
 
+# The panel-screenshot image entity (#37) refreshes on its own timer, not the
+# coordinator's: a fetch is ~500-540 KB and ~0.65 s live-measured on v1.1.80,
+# both too heavy to fold into the 5 s live tier. "What's on the panel right
+# now" tolerates being briefly stale far better than the device tolerates
+# being hit for half a megabyte every few seconds, so this stays conservative.
+SCREENSHOT_REFRESH_INTERVAL = 60
+
 # How many live cycles the DSP and EQ gates are waited for before their absence
 # is read as "this unit has neither". Those two alone are carried by
 # ``getState``, so unlike every other capability they can be *omitted* rather
