@@ -57,6 +57,7 @@ GET_KNOB_BRIGHTNESS = "/SystemSettings/displaySettings/getKnobBrightness"
 # *new* endpoint rather than replacing one, so a near-miss would silently leave
 # the captured payload answering instead of the override.
 GET_KNOB_OPTION = "/SystemSettings/displaySettings/getKnobSettingOption"
+GET_SCREENSHOT = "/ZidooControlCenter/getScreenShot"
 
 # Every endpoint the coordinator polls, with the capture that answers it.
 DEVICE_ENDPOINTS: dict[str, str] = {

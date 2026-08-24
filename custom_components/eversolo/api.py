@@ -429,6 +429,23 @@ class EversoloApiClient:
         """
         return self.create_image_url_by_path(path) if path else None
 
+    async def async_get_screenshot(self) -> bytes:
+        """Fetch the front panel's current contents as a PNG (#37).
+
+        Capitalisation matters: ``getScreenshot``/``screenshot`` both answer
+        ``{"status":804,"msg":"Url error"}``, only ``getScreenShot`` (capital
+        S) works. Firmware without this endpoint answers the same way — HTTP
+        200 with that JSON body, not a 404 — so there is no status-code
+        signal to gate on; the caller has to look at the bytes themselves
+        (e.g. ``homeassistant.components.image.infer_image_type``) to tell a
+        real screenshot from the error body.
+        """
+        return await self._api_wrapper(
+            method="get",
+            url=self._url("/ZidooControlCenter/getScreenShot"),
+            parse_json=False,
+        )
+
     # ------------------------------------------------------------------
     # Transport.
     # ------------------------------------------------------------------
