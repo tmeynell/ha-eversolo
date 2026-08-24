@@ -33,6 +33,7 @@ from custom_components.eversolo.const import (
     DOMAIN,
     POWER_TAG_SCREEN,
     SETTING_TAG_ANALOG_PANEL,
+    SETTING_TAG_AUTO_CHANGE_SOURCE,
     SETTING_TAG_CD_AUTO_PLAY,
     SETTING_TAG_EOS_ENGINE,
     SETTING_TAG_GAPLESS,
@@ -185,6 +186,15 @@ GATES: tuple[Gate, ...] = (
         },
     ),
     Gate(
+        capability="has_auto_change_source",
+        entities=(("switch", "_auto_change_source_internal_player"),),
+        absent={
+            GET_SYSTEM_SETTINGS: {
+                "json": settings_without(SETTING_TAG_AUTO_CHANGE_SOURCE)
+            }
+        },
+    ),
+    Gate(
         capability="has_screen_brightness",
         entities=(("number", "_screen_brightness"),),
         absent={
@@ -330,6 +340,7 @@ A8_ENTITY_SET = {
     ("switch", "_subwoofer_output"),
     ("switch", "_gapless"),
     ("switch", "_eos_engine"),
+    ("switch", "_auto_change_source_internal_player"),
     ("switch", "_screen"),
 }
 

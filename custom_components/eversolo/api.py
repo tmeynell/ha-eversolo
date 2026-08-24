@@ -330,6 +330,17 @@ class EversoloApiClient:
             f"/SystemSettings/playSettings/setCDAutoPlay?switch={int(enabled)}"
         )
 
+    async def async_set_auto_change_source(self, enabled: bool) -> None:
+        """Auto-switch to Internal Player/Connect when they start playing.
+
+        Does not cover Bluetooth In — the device's own description of this
+        toggle limits it to the Internal Player (built-in music service and
+        Connect).
+        """
+        await self._command(
+            f"/SystemSettings/playSettings/setAutoChangeSource?switch={int(enabled)}"
+        )
+
     async def async_mute(self) -> None:
         """Mutes the output."""
         await self._command("/ZidooMusicControl/v2/setMuteVolume?isMute=1")

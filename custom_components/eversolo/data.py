@@ -18,6 +18,7 @@ from .const import (
     INPUT_INTERNAL_PLAYER,
     POWER_TAG_SCREEN,
     SETTING_TAG_ANALOG_PANEL,
+    SETTING_TAG_AUTO_CHANGE_SOURCE,
     SETTING_TAG_CD_AUTO_PLAY,
     SETTING_TAG_EOS_ENGINE,
     SETTING_TAG_GAPLESS,
@@ -889,6 +890,7 @@ class EversoloCapabilities:
     has_analog_panel: bool = False
     has_gapless: bool = False
     has_eos_engine: bool = False
+    has_auto_change_source: bool = False
     has_output_routing: bool = False
     has_reboot: bool = False
     has_power_off: bool = False
@@ -966,6 +968,7 @@ class EversoloCapabilities:
             has_analog_panel=SETTING_TAG_ANALOG_PANEL in tags,
             has_gapless=SETTING_TAG_GAPLESS in tags,
             has_eos_engine=SETTING_TAG_EOS_ENGINE in tags,
+            has_auto_change_source=SETTING_TAG_AUTO_CHANGE_SOURCE in tags,
             has_screen_brightness=SETTING_TAG_SCREEN_BRIGHTNESS in tags,
             has_vu_style=SETTING_TAG_VU_MODE in tags,
             has_spectrum_style=SETTING_TAG_SPECTRUM_MODE in tags,
