@@ -17,6 +17,7 @@ history in the project's `CLAUDE.md`).
 | `getstate_bluetooth.json` | `/ZidooMusicControl/v2/getState` | 2026-08-17, `v1.1.80` — **real, unmodified** — a phone paired and playing over Bluetooth; see below |
 | `getstate_streaming.json` | `/ZidooMusicControl/v2/getState` | **derived** — see below |
 | `getstate_earc.json` | `/ZidooMusicControl/v2/getState` | **derived** — the inert TV/eARC input, see below |
+| `getstate_local_file.json` | `/ZidooMusicControl/v2/getState` | 2026-08-23, `v1.1.80` — **real, unmodified** — a local library FLAC playing on the internal player, no disc involved; see below |
 | `getsystemsettings.json` | `/SystemSettings/getSystemSettings` | self-documenting settings tree; source of capability detection |
 | `getinputandoutputlist.json` | `/ZidooMusicControl/v2/getInputAndOutputList` | inputs XMOS/BT/SPDIF/EARC, outputs XLR/RCA/XLRRCA/… |
 | `getvumodelist.json` | `/SystemSettings/displaySettings/getVUModeList` | VU meter styles |
@@ -58,6 +59,15 @@ streaming source). The streaming block (`everSoloPlayAudioInfo`) is genuinely em
 let the source-attribution bug ride unnoticed: nothing in the suite, until now, held a
 CD state that wasn't also secretly a Spotify stream.
 
+### `getstate_local_file.json` — a local library FLAC, no disc involved
+
+Captured 2026-08-23 against `192.168.0.63`/Ethernet, firmware `v1.1.80`, while charting
+issue #35. `playType:5`, `intputTag:"XMOS-XMOS"`, `playingMusic.extension:"flac"`, no
+`formIcon` — the state that exposed the source-attribution defect where `source` reported
+the synthetic `CD` source whenever anything at all played from the internal player,
+because `playType == 5` alone was tested rather than `playType == 5 and extension == "cd"`.
+**Real, unmodified** aside from the MAC scrub below.
+
 ### `getstate_bluetooth.json` — a phone paired and playing over Bluetooth
 
 Captured 2026-08-17 against `192.168.0.63`/Ethernet, firmware `v1.1.80`, by issue #01,
@@ -70,7 +80,7 @@ double-source shape as the Spotify capture above, just a different second source
 
 ### The MAC scrub
 
-All three captures above share the same wired `net_mac`, scrubbed the same way as every
+All four captures above share the same wired `net_mac`, scrubbed the same way as every
 other fixture — real value swapped for the usual `aa:bb:cc:00:00:01` placeholder. The
 real-to-placeholder mapping is kept local-only, outside this repo entirely (this repo is
 deliberately cloned outside the project's OneDrive tree — see `CLAUDE.md` — while that
