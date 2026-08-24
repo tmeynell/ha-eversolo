@@ -40,6 +40,8 @@ share the DMP-A entity shape.
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
 | Image         | Panel screenshot     | Live capture of the front panel (native 1600x600), refreshed every 60 s      |
 | Image         | {option} preview     | One per VU/spectrum style option, e.g. "VU meter 3 preview" (only on units with that style list) |
+| Image         | Spectrum style preview | The currently selected spectrum style's picture, updating as the selection changes (only on units with that style list) |
+| Image         | VU style preview     | The currently selected VU style's picture, updating as the selection changes (only on units with that style list) |
 | Number        | Knob brightness      | Knob brightness, 0–100% (only on units with a knob)                           |
 | Number        | Screen brightness    | Front display brightness, 0–100%                                              |
 | Select        | DAC filter           | Reconstruction filter for the analog outputs (only on units with that panel)  |
@@ -101,12 +103,14 @@ source badge, not album art; never used on Bluetooth, which has no badge of
 its own). Home Assistant's browser handling of mixed content applies if your
 own UI is served over `https://`.
 
-**The style-preview Image entities show what each VU/spectrum option looks
-like, not which one is selected** — that is still the `VU style`/`Spectrum
-style` select's job. Home Assistant has no widget that binds several
-thumbnails to one select, so pairing these with the select on a dashboard
-(e.g. a `picture-elements` card tapping `select.select_option`) is left to
-you.
+**The `{option} preview` Image entities show what each VU/spectrum option
+looks like, not which one is selected.** Home Assistant has no widget that
+binds several thumbnails to one select, so pairing the gallery with the
+select on a dashboard (e.g. a `picture-elements` card tapping
+`select.select_option`) is left to you. The separate `VU style preview`/
+`Spectrum style preview` entities cover the other half — their picture always
+tracks whichever option is currently selected, so a plain `picture` card
+showing one of them is enough to see what the device is doing right now.
 
 **Power is symmetric on units that report `ableRemoteBoot`.** The media
 player's `turn_on`/`turn_off` and the Power On/Off buttons drive the same two

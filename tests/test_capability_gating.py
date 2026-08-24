@@ -205,12 +205,20 @@ GATES: tuple[Gate, ...] = (
     ),
     Gate(
         capability="has_vu_style",
-        entities=(("select", "_vu_style"), *VU_STYLE_PREVIEWS),
+        entities=(
+            ("select", "_vu_style"),
+            ("image", "_vu_style_current_preview"),
+            *VU_STYLE_PREVIEWS,
+        ),
         absent={GET_SYSTEM_SETTINGS: {"json": settings_without(SETTING_TAG_VU_MODE)}},
     ),
     Gate(
         capability="has_spectrum_style",
-        entities=(("select", "_spectrum_style"), *SPECTRUM_STYLE_PREVIEWS),
+        entities=(
+            ("select", "_spectrum_style"),
+            ("image", "_spectrum_style_current_preview"),
+            *SPECTRUM_STYLE_PREVIEWS,
+        ),
         absent={
             GET_SYSTEM_SETTINGS: {"json": settings_without(SETTING_TAG_SPECTRUM_MODE)}
         },
@@ -231,6 +239,8 @@ GATES: tuple[Gate, ...] = (
         also_absent=(
             ("select", "_vu_style"),
             ("select", "_spectrum_style"),
+            ("image", "_vu_style_current_preview"),
+            ("image", "_spectrum_style_current_preview"),
             *VU_STYLE_PREVIEWS,
             *SPECTRUM_STYLE_PREVIEWS,
         ),
@@ -335,6 +345,8 @@ A8_ENTITY_SET = {
     ("select", "_vu_style"),
     ("select", "_spectrum_style"),
     ("select", "_visualization"),
+    ("image", "_vu_style_current_preview"),
+    ("image", "_spectrum_style_current_preview"),
     *VU_STYLE_PREVIEWS,
     *SPECTRUM_STYLE_PREVIEWS,
     ("switch", "_cd_auto_play"),

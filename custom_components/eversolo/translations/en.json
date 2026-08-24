@@ -72,8 +72,14 @@
             "panel_screenshot": {
                 "name": "Panel screenshot"
             },
+            "spectrum_style_current_preview": {
+                "name": "Spectrum style preview"
+            },
             "spectrum_style_preview": {
                 "name": "{option} preview"
+            },
+            "vu_style_current_preview": {
+                "name": "VU style preview"
             },
             "vu_style_preview": {
                 "name": "{option} preview"

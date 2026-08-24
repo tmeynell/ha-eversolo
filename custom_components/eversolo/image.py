@@ -7,6 +7,11 @@ option, sourced from that option's own ``icon`` field
 clickable picker rather than a bare dropdown. The selects themselves are
 untouched — this is additive (#17).
 
+Alongside that per-option gallery, one further entity per list tracks
+whichever option is *currently* selected, so a dashboard can show what the
+device is doing right now without the user picking through the gallery
+themselves (#32).
+
 Entities are keyed by the select's list *and* the option's device index, not
 just position, since the device's own numbering is what a write and a
 re-poll both key on (see ``EversoloOption.index``).
@@ -51,6 +56,11 @@ class EversoloImageDescription(ImageEntityDescription):
     # can also ask "has this key ever been fetched at all" (see
     # ``_a_supported_list_is_still_unread``), which a callable can't answer.
     settings_key: str
+    # Key/translation for the one current-selection entity this list also
+    # gets (#32), distinct from ``key``/``translation_key`` above, which
+    # belong to the per-*option* gallery entities.
+    current_key: str
+    current_translation_key: str
 
     def read(self, data: EversoloData) -> EversoloOptionList:
         """Read this list as the device most recently reported it."""
@@ -64,6 +74,8 @@ ENTITY_DESCRIPTIONS: tuple[EversoloImageDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         is_supported=lambda capabilities: capabilities.has_vu_style,
         settings_key="vu_mode_state",
+        current_key="vu_style_current_preview",
+        current_translation_key="vu_style_current_preview",
     ),
     EversoloImageDescription(
         key="spectrum_style_preview",
@@ -71,6 +83,8 @@ ENTITY_DESCRIPTIONS: tuple[EversoloImageDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         is_supported=lambda capabilities: capabilities.has_spectrum_style,
         settings_key="spectrum_mode_state",
+        current_key="spectrum_style_current_preview",
+        current_translation_key="spectrum_style_current_preview",
     ),
 )
 
@@ -84,6 +98,11 @@ def _build(
     list entries never carried an ``icon`` (nobody has captured one, but
     nothing here assumes every firmware does) would otherwise show an image
     entity that can never resolve a picture.
+
+    Alongside those, one *current-selection* entity per supported list (#32):
+    unlike the per-option gallery above, that one entity exists regardless of
+    whether the option currently selected happens to carry a preview — the
+    selection can move to one that does.
     """
     return [
         EversoloOptionPreviewImage(coordinator, description, option)
@@ -91,6 +110,10 @@ def _build(
         if description.is_supported(capabilities)
         for option in description.read(coordinator.data).options
         if option.preview_path
+    ] + [
+        EversoloCurrentSelectionPreviewImage(coordinator, description)
+        for description in ENTITY_DESCRIPTIONS
+        if description.is_supported(capabilities)
     ]
 
 
@@ -139,7 +162,60 @@ async def async_setup_entry(hass, entry: EversoloConfigEntry, async_add_devices)
     )
 
 
-class EversoloOptionPreviewImage(EversoloEntity, ImageEntity):
+class _EversoloOptionListPreviewImage(EversoloEntity, ImageEntity):
+    """Shared tracking for the two style-list preview entities (#17, #32).
+
+    Both watch the same list for its current choice to move on, and re-
+    timestamp exactly then — nothing else in this integration invalidates an
+    ``image`` entity's client-side cache, so that movement is the signal used
+    to force a fresh frontend fetch. They differ only in *which* option's
+    picture that is: one option fixed at construction, or whichever the list
+    currently selects — ``_resolve_option`` is that one seam.
+    """
+
+    entity_description: EversoloImageDescription
+
+    def _start_tracking(
+        self,
+        coordinator: EversoloDataUpdateCoordinator,
+        entity_description: EversoloImageDescription,
+    ) -> None:
+        """Seed tracking state and the initial picture.
+
+        Called at the end of each subclass's own ``__init__``, once whatever
+        ``_resolve_option`` needs (e.g. ``_option_index``) is already set —
+        the reading this entity was built from already has a current index,
+        so seeding against it here means the first coordinator update after
+        creation can't mistake "unchanged" for "just changed".
+        """
+        self.entity_description = entity_description
+        self._known_current_index = entity_description.read(
+            coordinator.data
+        ).current_index
+        self._set_image_url()
+
+    def _resolve_option(self) -> EversoloOption | None:
+        """Return this entity's option, as the device most recently listed it."""
+        raise NotImplementedError
+
+    def _set_image_url(self) -> None:
+        """Resolve and store the picture URL, timestamping it as fresh."""
+        option = self._resolve_option()
+        self._attr_image_url = self.coordinator.client.create_image_url_or_none(
+            option.preview_path if option else None
+        )
+        self._attr_image_last_updated = dt_util.utcnow()
+
+    def _handle_coordinator_update(self) -> None:
+        """Refresh the picture only when the list's current choice moves on."""
+        options = self.entity_description.read(self.coordinator.data)
+        if options.current_index != self._known_current_index:
+            self._known_current_index = options.current_index
+            self._set_image_url()
+        super()._handle_coordinator_update()
+
+
+class EversoloOptionPreviewImage(_EversoloOptionListPreviewImage):
     """The device's own thumbnail for one option in a style list.
 
     Static: the picture behind ``preview_path`` never changes for a given
@@ -148,8 +224,6 @@ class EversoloOptionPreviewImage(EversoloEntity, ImageEntity):
     still in the list at all — a re-poll dropping it is treated the same as
     the device never having reported it.
     """
-
-    entity_description: EversoloImageDescription
 
     def __init__(
         self,
@@ -160,51 +234,43 @@ class EversoloOptionPreviewImage(EversoloEntity, ImageEntity):
         """Initialize the preview image for one option."""
         EversoloEntity.__init__(self, coordinator)
         ImageEntity.__init__(self, coordinator.hass)
-        self.entity_description = entity_description
         self._option_index = option.index
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_"
             f"{entity_description.key}_{option.index}"
         )
         self._attr_translation_placeholders = {"option": option.title}
-        # The reading this entity was built from already has a current
-        # index — seed against it so the first coordinator update after
-        # creation doesn't mistake "unchanged" for "just changed".
-        self._known_current_index = entity_description.read(
-            coordinator.data
-        ).current_index
-        self._set_image_url(option.preview_path)
+        self._start_tracking(coordinator, entity_description)
 
-    @property
-    def _option(self) -> EversoloOption | None:
-        """This entity's option, as the device most recently listed it."""
+    def _resolve_option(self) -> EversoloOption | None:
         options = self.entity_description.read(self.coordinator.data)
         return next((o for o in options.options if o.index == self._option_index), None)
 
-    def _set_image_url(self, preview_path: str | None) -> None:
-        """Resolve and store the picture URL, timestamping it as fresh."""
-        self._attr_image_url = self.coordinator.client.create_image_url_or_none(
-            preview_path
+
+class EversoloCurrentSelectionPreviewImage(_EversoloOptionListPreviewImage):
+    """Whichever option a style list currently has selected (#32).
+
+    One entity per list, unlike ``EversoloOptionPreviewImage``'s one-per-
+    option gallery — this tracks *which* picture is live rather than
+    offering every picture the device could show.
+    """
+
+    def __init__(
+        self,
+        coordinator: EversoloDataUpdateCoordinator,
+        entity_description: EversoloImageDescription,
+    ) -> None:
+        """Initialize the current-selection preview image."""
+        EversoloEntity.__init__(self, coordinator)
+        ImageEntity.__init__(self, coordinator.hass)
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_{entity_description.current_key}"
         )
-        self._attr_image_last_updated = dt_util.utcnow()
+        self._attr_translation_key = entity_description.current_translation_key
+        self._start_tracking(coordinator, entity_description)
 
-    def _handle_coordinator_update(self) -> None:
-        """Refresh the picture only when the list's current choice moves on.
-
-        The device's own icon assets are static, so there is nothing to gain
-        from re-timestamping this every settings poll. But nothing else in
-        this integration invalidates an ``image`` entity's client-side cache,
-        so a re-poll that *does* change which option is selected is used as
-        the signal to bump ``image_last_updated`` and force a fresh fetch,
-        rather than leaving Home Assistant's frontend serving whatever it
-        cached at startup indefinitely.
-        """
-        options = self.entity_description.read(self.coordinator.data)
-        if options.current_index != self._known_current_index:
-            self._known_current_index = options.current_index
-            option = self._option
-            self._set_image_url(option.preview_path if option else None)
-        super()._handle_coordinator_update()
+    def _resolve_option(self) -> EversoloOption | None:
+        return self.entity_description.read(self.coordinator.data).current
 
 
 class EversoloPanelScreenshotImage(EversoloEntity, ImageEntity):
