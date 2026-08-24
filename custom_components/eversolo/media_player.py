@@ -346,12 +346,14 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
 
         The synthetic CD source reads back only while the local player is
         what's audible (``playback.is_local_source``, ``playType == 5``,
-        #03) — the unit keeps reporting a loaded disc in ``playingMusic``
-        even when something else is what's playing, so a disc merely being
-        in the tray can't be the test.
+        #03) **and** the loaded item is actually a disc (``playback.is_cd``,
+        ``extension == "cd"``, #35) — ``playType == 5`` alone is also true
+        for a local library/SMB/USB track playing on the internal player,
+        which is not a disc even though the unit keeps reporting a loaded
+        one in ``playingMusic``.
         """
         current = self.coordinator.data.inputs.current
-        if self._has_cd and self._playback.is_local_source:
+        if self._has_cd and self._playback.is_local_source and self._playback.is_cd:
             reported = CD_SOURCE
         else:
             reported = current.name if current else None

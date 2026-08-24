@@ -95,6 +95,11 @@ def _bluetooth() -> dict:
     return {GET_STATE: {"json": fixture_json("getstate_bluetooth.json")}}
 
 
+def _local_file() -> dict:
+    """Override the seam with a local library FLAC playing (playType 5, no disc)."""
+    return {GET_STATE: {"json": fixture_json("getstate_local_file.json")}}
+
+
 async def _player(
     hass: HomeAssistant, aioclient_mock, overrides=None, options=None
 ) -> str:
@@ -426,6 +431,21 @@ async def test_without_a_disc_the_source_is_the_input_name(
 ) -> None:
     """No disc means the plain input name, not a phantom CD."""
     entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    assert hass.states.get(entity_id).attributes["source"] == "Internal player"
+
+
+async def test_a_local_file_on_the_internal_player_is_not_the_cd_source(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#35: ``playType == 5`` alone is not "CD" — it is also true for local files.
+
+    ``getstate_local_file.json`` is a real capture of a library FLAC playing on
+    the internal player with no disc involved (``playType: 5``,
+    ``extension: "flac"``) — the same ``playType`` a genuine disc reports. The
+    source must follow ``extension == "cd"`` too, not ``playType`` alone.
+    """
+    entity_id = await _player(hass, aioclient_mock, _local_file())
 
     assert hass.states.get(entity_id).attributes["source"] == "Internal player"
 
