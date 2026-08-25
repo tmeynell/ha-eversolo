@@ -6,4 +6,4 @@ pytest-homeassistant-custom-component==0.13.321
 # Matches manifest.json's requirements pin — HA installs this itself in a real
 # deployment, but the test environment needs its own copy since coordinator.py
 # imports wake_on_lan.py transitively.
-wakeonlan==3.1.0
+wakeonlan==4.0.0
