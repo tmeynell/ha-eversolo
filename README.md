@@ -40,8 +40,8 @@ share the DMP-A entity shape.
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
 | Image         | Panel screenshot     | Live capture of the front panel (native 1600x600), refreshed every 60 s      |
 | Image         | {option} preview     | One per VU/spectrum style option, e.g. "VU meter 3 preview" (only on units with that style list) |
-| Image         | Spectrum style preview | The currently selected spectrum style's picture, updating as the selection changes (only on units with that style list) |
-| Image         | VU style preview     | The currently selected VU style's picture, updating as the selection changes (only on units with that style list) |
+| Image         | Selected spectrum preview | The currently selected spectrum style's picture, updating as the selection changes (only on units with that style list) |
+| Image         | Selected VU preview  | The currently selected VU style's picture, updating as the selection changes (only on units with that style list) |
 | Number        | Knob brightness      | Knob brightness, 0–100% (only on units with a knob)                           |
 | Number        | Screen brightness    | Front display brightness, 0–100%                                              |
 | Select        | DAC filter           | Reconstruction filter for the analog outputs (only on units with that panel)  |
@@ -107,8 +107,8 @@ own UI is served over `https://`.
 looks like, not which one is selected.** Home Assistant has no widget that
 binds several thumbnails to one select, so pairing the gallery with the
 select on a dashboard (e.g. a `picture-elements` card tapping
-`select.select_option`) is left to you. The separate `VU style preview`/
-`Spectrum style preview` entities cover the other half — their picture always
+`select.select_option`) is left to you. The separate `Selected VU preview`/
+`Selected spectrum preview` entities cover the other half — their picture always
 tracks whichever option is currently selected, so a plain `picture` card
 showing one of them is enough to see what the device is doing right now.
 
