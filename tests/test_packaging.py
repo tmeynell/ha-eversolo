@@ -23,6 +23,7 @@ COMPONENT_DIR = REPO / "custom_components" / DOMAIN
 MANIFEST = COMPONENT_DIR / "manifest.json"
 HACS = REPO / "hacs.json"
 README = REPO / "README.md"
+CHANGELOG = REPO / "CHANGELOG.md"
 
 # The oldest core release this integration is allowed to claim without someone
 # re-deriving the floor. Raising it is a deliberate act: the README has to say
@@ -80,3 +81,19 @@ def test_the_readme_lists_every_entity_the_integration_builds() -> None:
     ]
 
     assert not missing
+
+
+def test_the_changelog_has_an_entry_for_the_current_version() -> None:
+    """A version bump with no changelog entry is a version bump nobody can read back.
+
+    Keep a Changelog (CONTRIBUTING.md) asks for `[Unreleased]` to become a dated
+    `## [X.Y.Z]` section as part of the same PR that bumps the manifest version — this
+    is what actually enforces that instead of trusting it gets remembered.
+    """
+    version = _load(MANIFEST)["version"]
+    changelog = CHANGELOG.read_text(encoding="utf-8")
+    pattern = rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}"
+
+    assert re.search(pattern, changelog, re.MULTILINE), (
+        f"CHANGELOG.md has no dated '## [{version}]' section for the version in manifest.json"
+    )
