@@ -21,12 +21,14 @@ nothing to authenticate.
 It supports Eversolo's DMP-A line (DMP-A6, DMP-A8, DMP-A10 and other A-series models).
 Every entity is gated on what the device itself reports it has, so entity sets
 vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested.**
-Eversolo's PLAY and T series (T8/T10) streamers likely speak the same on-device
-API and would probably work too, but setup currently only admits a device that
-identifies itself as a DMP-A model — a device that doesn't is refused. The
-DAC-Z series is unverified either way. Widening admission to PLAY/T series is
-tracked but not yet done, since there's no hardware available to confirm they
-share the DMP-A entity shape.
+Setup currently only admits a device that identifies itself as a DMP-A model —
+a device that doesn't is refused. Eversolo's PLAY and T series (T8/T10)
+streamers are believed to share the same on-device API, and the DAC-Z series
+is unverified either way, but none of them has been confirmed against real
+hardware, so admission isn't widened to them yet. If you own one and want to
+try it regardless, see
+[Trying this on a PLAY, T8 or T10](docs/trying-unsupported-models.md) for an
+unofficial, unsupported way to bypass the check locally.
 
 ### Entities
 
@@ -54,7 +56,7 @@ share the DMP-A entity shape.
 | Select        | VU style             | Selects between the VU meter styles the device lists                          |
 | Sensor        | Audio format         | Diagnostic: current stream quality, e.g. `PCM 44.1kHz/16bit`                  |
 | Sensor        | Input                | The live input's name, with the device's own icon as its picture              |
-| Switch        | Auto-switch source (Internal Player) | Switches input to the Internal Player when built-in playback or Connect starts (not Bluetooth In) |
+| Switch        | Auto-switch source (Internal Player) | Auto-switches to the Internal Player on built-in playback/Connect, instead of leaving you to select it by hand (see note below) |
 | Switch        | CD auto play         | Starts a disc as soon as it is inserted (only on units with a CD drive)       |
 | Switch        | EOS engine           | Eversolo's original sampling-rate audio engine                                |
 | Switch        | Gapless playback     | Plays consecutive tracks without a gap                                        |
@@ -72,10 +74,19 @@ out rather than failing when pressed.
 
 **Its source list carries the hardware inputs plus a synthetic `CD` source** on
 units with a disc drive. Picking `CD` switches the device to its internal
-player, which is the only input where transport actually controls the disc — it
-does not start playback; that is what the CD auto play switch is for. The
-source reads back as `CD` while a disc is loaded and the internal player is
-live.
+player and starts the loaded disc playing; selecting it with an empty tray
+raises an error instead of silently doing nothing. The CD auto play switch is
+for the other direction — starting playback as soon as a disc is inserted,
+without picking the source yourself. The source reads back as `CD` while a
+disc is loaded and the internal player is live.
+
+**Auto-switch source closes a real gap: the device doesn't always switch its
+own active input for you.** Starting playback from the Eversolo app, Spotify
+Connect, or another local source can leave the unit sitting on whatever input
+was last selected — audible only once you (or an automation) pick the right
+source by hand. Turning this switch on makes the device switch to the
+Internal Player itself whenever built-in playback or Connect starts — per the
+device's own description of the toggle, it does not cover Bluetooth In.
 
 **The Visualization select's state is a slug, not the label you see.** Its
 three values are `off`, `vu_meter` and `spectrum`, displayed as Off, VU meter
@@ -147,9 +158,11 @@ your Home Assistant `custom_components/` folder, then restart Home Assistant.
 
 ## Configuration
 
-Use the `Add integration` dialog, search for `Eversolo`, and enter the host IP
-(or hostname) of your streamer. That is all you are asked for: the device is
-contacted on its fixed port 9529 and needs no username or password.
+Home Assistant discovers a streamer on your LAN via SSDP and offers it under
+`Settings → Devices & services → Discovered`; confirming it is all setup takes.
+Otherwise, use the `Add integration` dialog, search for `Eversolo`, and enter
+the host IP (or hostname) of your streamer. That is all you are asked for: the
+device is contacted on its fixed port 9529 and needs no username or password.
 
 The integration identifies your device by its hardware MAC address, so the same
 unit cannot be added twice. If its IP changes, use `Reconfigure` on the existing
@@ -160,11 +173,12 @@ Polling is fixed: live state (playback, volume, input) is read every 5
 seconds, and the settings tier (brightness, styles, routing, the toggles)
 every 30 seconds and again immediately after any write.
 
-The one thing that is configurable, via `Configure` on the integration entry,
-is an off-by-default option to look up cover art on MusicBrainz and the Cover
-Art Archive for Bluetooth playback — the only source the device itself never
-supplies art for. It is the only network traffic this integration ever sends
-off your local network, so it stays off unless you turn it on.
+The one thing that is configurable is an off-by-default option to look up
+cover art on MusicBrainz and the Cover Art Archive for Bluetooth playback — the
+only source the device itself never supplies art for. It is the only network
+traffic this integration ever sends off your local network, so it stays off
+unless you turn it on. The manual `Add integration` form offers it up front;
+either way, it can be flipped later via `Configure` on the integration entry.
 
 ## Known limitations
 
@@ -176,12 +190,11 @@ for the input in use, and whether output EQ is active, and nothing more.
 Choosing or editing a DSP profile, editing PEQ bands, and running DRC room
 correction are not in this release.
 
-**No auto-discovery.** Setup is by IP address only.
-
-**CD support is playback only.** Transport, disc metadata and CD auto play work.
-Tray/eject, ripping and disc details need the device's screen-mirroring channel
-and are not supported. The metadata the API gives for a disc is title, artist,
-duration and position — no album, and no track list.
+**CD support is playback only.** Transport, disc metadata, selecting the CD
+source, and CD auto play work. Tray/eject, ripping and disc details need the
+device's screen-mirroring channel and are not supported. The metadata the API
+gives for a disc is title, artist, duration and position — no album, and no
+track list.
 
 **Screen mirroring, touch injection, the file manager and the APK installer**
 are not supported.
