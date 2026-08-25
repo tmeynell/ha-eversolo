@@ -18,6 +18,7 @@ import asyncio
 import json
 import socket
 from collections.abc import Awaitable
+from urllib.parse import quote
 
 import aiohttp
 
@@ -60,6 +61,10 @@ class EversoloApiClient:
 
     async def _read(self, path: str) -> dict:
         """GET an endpoint and return its decoded JSON body."""
+        return await self._api_wrapper(method="get", url=self._url(path))
+
+    async def _read_list(self, path: str) -> list[dict]:
+        """GET an endpoint whose JSON body is a top-level array, not an object."""
         return await self._api_wrapper(method="get", url=self._url(path))
 
     async def _command(self, path: str) -> None:
@@ -391,6 +396,32 @@ class EversoloApiClient:
         """Set the output."""
         await self._command(
             f"/ZidooMusicControl/v2/setOutInputList?tag={tag}&index={index}"
+        )
+
+    async def async_get_cd_list(self) -> list[dict]:
+        """Return the loaded disc(s), or an empty list when the tray is empty.
+
+        Each entry carries ``info.url`` — the value ``async_play_cd_music``'s
+        ``uri`` must match exactly, no normalisation applied server-side — and
+        ``info.name``. An empty list is the "no disc loaded" signal: the
+        drive-capability flag only says the unit *has* a drive, not that one
+        is *in* it.
+        """
+        return await self._read_list("/ZidooMusicControl/v2/getCDList")
+
+    async def async_play_cd_music(self, uri: str, index: int) -> None:
+        """Make the disc at ``uri`` audible, starting at its ``index``-th track.
+
+        Switches the active input to the internal player by itself — no prior
+        ``async_set_input`` call is needed (#36). ``uri`` must be a value read
+        from ``async_get_cd_list``'s own ``info.url``, matched by the device
+        server-side with exact string equality; a wrong ``uri`` or an
+        out-of-range ``index`` both answer ``{"status": 200}`` and do nothing,
+        consistent with this API's habit of lying in both directions — only a
+        read-back proves this landed.
+        """
+        await self._command(
+            f"/ZidooMusicControl/v2/playCDMusic?uri={quote(uri, safe='')}&index={index}"
         )
 
     # ------------------------------------------------------------------

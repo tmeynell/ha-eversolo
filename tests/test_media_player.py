@@ -44,10 +44,12 @@ from custom_components.eversolo.const import (
 
 from .helpers import (
     BASE_URL,
+    GET_CD_LIST,
     GET_INPUT_OUTPUT,
     GET_MODEL,
     GET_STATE,
     GET_SYSTEM_SETTINGS,
+    PLAY_CD_MUSIC,
     SET_INPUT,
     SET_POWER_OPTION,
     UNIQUE_ID,
@@ -536,18 +538,68 @@ async def test_form_icon_is_a_last_resort_when_streaming_has_no_art(
     )
 
 
-async def test_selecting_cd_switches_to_the_internal_player_without_playing(
+async def test_selecting_cd_plays_the_loaded_disc(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """Transport only works on XMOS (#03); starting the disc is not our call."""
-    entity_id = await _player(hass, aioclient_mock, _streaming())
+    """#36: selecting CD must make the disc audible, not just switch input.
+
+    ``playCDMusic`` switches the active input to the internal player by
+    itself, so no ``setInputList`` call is needed or sent.
+    """
+    entity_id = await _player(
+        hass,
+        aioclient_mock,
+        _streaming() | {GET_CD_LIST: {"json": fixture_json("getcdlist.json")}},
+    )
 
     await _call(
         hass, SERVICE_SELECT_SOURCE, entity_id, **{ATTR_INPUT_SOURCE: CD_SOURCE}
     )
 
-    assert query_of(aioclient_mock, SET_INPUT) == {"tag": "XMOS", "index": "0"}
-    assert calls_to(aioclient_mock, PLAY_OR_PAUSE) == 0
+    assert query_of(aioclient_mock, PLAY_CD_MUSIC) == {
+        "uri": "/dev/block/sr0",
+        "index": "0",
+    }
+    assert calls_to(aioclient_mock, SET_INPUT) == 0
+    assert hass.states.get(entity_id).attributes["source"] == CD_SOURCE
+
+
+async def test_selecting_cd_with_no_disc_loaded_is_refused(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#36: an empty tray must not fire a call that would just as silently no-op.
+
+    A wrong or absent ``uri`` answers ``{"status": 200}`` and does nothing, so
+    the only safe move on an empty ``getCDList`` is to refuse before sending
+    anything at all.
+    """
+    entity_id = await _player(
+        hass,
+        aioclient_mock,
+        _streaming() | {GET_CD_LIST: {"json": fixture_json("getcdlist_empty.json")}},
+    )
+
+    with pytest.raises(ServiceValidationError):
+        await _call(
+            hass, SERVICE_SELECT_SOURCE, entity_id, **{ATTR_INPUT_SOURCE: CD_SOURCE}
+        )
+
+    assert calls_to(aioclient_mock, PLAY_CD_MUSIC) == 0
+    assert calls_to(aioclient_mock, SET_INPUT) == 0
+
+
+async def test_cd_source_stays_listed_with_no_disc_loaded(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The source list shape must not change under the user (#36).
+
+    ``has_cd`` says the unit has a drive, not that a disc sits in it —
+    ``source_list`` gates on the former alone, so an empty tray does not
+    drop ``CD`` from the list.
+    """
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    assert CD_SOURCE in hass.states.get(entity_id).attributes["source_list"]
 
 
 async def test_selecting_an_input_sends_its_own_tag_and_index(
