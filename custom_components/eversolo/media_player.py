@@ -37,9 +37,9 @@ from homeassistant.components.media_player import (
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
-from .const import CD_SOURCE, INPUT_INTERNAL_PLAYER, LOGGER, PLAY_TYPE_BLUETOOTH
+from .const import CD_SOURCE, LOGGER, PLAY_TYPE_BLUETOOTH
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
-from .data import EversoloInput, EversoloPlayback, EversoloVolume
+from .data import EversoloPlayback, EversoloVolume
 from .entity import EversoloEntity
 
 VOLUME_FEATURES = (
@@ -372,9 +372,17 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         return names or None
 
     async def async_select_source(self, source: str) -> None:
-        """Set the input source."""
-        target = self._input_for(source)
+        """Set the input source.
+
+        A real input answers first: a user who renamed one "CD" means that
+        one, and it would otherwise become unselectable. Only when no real
+        input claims the name does the synthetic CD source (#36) get a look.
+        """
+        target = self.coordinator.data.inputs.by_name(source)
         if target is None:
+            if source == CD_SOURCE and self._has_cd:
+                await self._async_play_cd()
+                return
             raise ServiceValidationError(f"{source} is not an input on this device")
 
         await self.coordinator.client.async_set_input(target.index, target.tag)
@@ -383,19 +391,25 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         # up to 30 s for the next settings cycle.
         await self.coordinator.async_refresh_settings()
 
-    def _input_for(self, source: str) -> EversoloInput | None:
-        """Resolve a chosen source name to an input, or None if it names none."""
-        inputs = self.coordinator.data.inputs
-        # A real input answers first: a user who renamed one "CD" means that
-        # one, and it would otherwise become unselectable.
-        if (named := inputs.by_name(source)) is not None:
-            return named
-        if source == CD_SOURCE and self._has_cd:
-            # A disc plays through the internal player and transport only works
-            # there (#03), so picking the CD switches the input — and stops.
-            # Starting playback is CD Auto Play's job, not this one's.
-            return inputs.by_tag(INPUT_INTERNAL_PLAYER)
-        return None
+    async def _async_play_cd(self) -> None:
+        """Make an already-loaded disc audible (#36).
+
+        ``playCDMusic`` switches the active input to the internal player by
+        itself, so no prior ``async_set_input`` call is needed. The disc's
+        ``uri`` is read fresh from ``getCDList`` rather than assumed — the
+        device matches it by exact string equality, and a wrong or absent one
+        answers ``{"status": 200}`` and silently does nothing. An empty
+        ``getCDList`` is the "no disc loaded" signal: the ``CD`` source stays
+        listed either way, but selecting it with nothing in the tray raises
+        rather than firing a call that would just as silently no-op.
+        """
+        discs = await self.coordinator.client.async_get_cd_list()
+        if not discs:
+            raise ServiceValidationError("No disc is loaded")
+        await self.coordinator.client.async_play_cd_music(
+            discs[0]["info"]["url"], index=0
+        )
+        self._expect(source=CD_SOURCE)
 
     # ------------------------------------------------------------------
     # Transport.

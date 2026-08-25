@@ -58,6 +58,10 @@ GET_KNOB_BRIGHTNESS = "/SystemSettings/displaySettings/getKnobBrightness"
 # the captured payload answering instead of the override.
 GET_KNOB_OPTION = "/SystemSettings/displaySettings/getKnobSettingOption"
 GET_SCREENSHOT = "/ZidooControlCenter/getScreenShot"
+# Read on demand by ``async_select_source(CD)``, not polled every cycle — so
+# it is deliberately absent from ``DEVICE_ENDPOINTS`` below; a test that needs
+# it registers it itself via ``prime_device``'s overrides.
+GET_CD_LIST = "/ZidooMusicControl/v2/getCDList"
 
 # Every endpoint the coordinator polls, with the capture that answers it.
 DEVICE_ENDPOINTS: dict[str, str] = {
@@ -88,6 +92,7 @@ COMMAND_PATHS = (
     "/ZidooMusicControl/v2/setInputList",
     "/ZidooMusicControl/v2/setOutInputList",
     "/ZidooMusicControl/v2/setPowerOption",
+    "/ZidooMusicControl/v2/playCDMusic",
     "/ZidooControlCenter/RemoteControl/sendkey",
     "/SystemSettings/playSettings/setCDAutoPlay",
     "/SystemSettings/playSettings/setGallessnewPlay",
@@ -108,6 +113,7 @@ CHANGE_VISUALIZATION = "/ZidooMusicControl/v2/changVUDisplay"
 
 SET_INPUT = "/ZidooMusicControl/v2/setInputList"
 SET_OUTPUT = "/ZidooMusicControl/v2/setOutInputList"
+PLAY_CD_MUSIC = "/ZidooMusicControl/v2/playCDMusic"
 SET_CD_AUTO_PLAY = "/SystemSettings/playSettings/setCDAutoPlay"
 SET_POWER_OPTION = "/ZidooMusicControl/v2/setPowerOption"
 SET_GAPLESS = "/SystemSettings/playSettings/setGallessnewPlay"

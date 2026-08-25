@@ -34,6 +34,8 @@ history in the project's `CLAUDE.md`).
 | `getdspconfig.json` | `/ZidooMusicControl/v2/getDSPConfig?id=1` | 2026-08-15 — single profile, `id` is the only accepted param |
 | `getdsppresetlist.json` | `/ZidooMusicControl/v2/getDSPPresetList` | 2026-08-15 — 23 named EQ presets, Flat / Pop / … / Treble Reducer |
 | `getdspsourceinlist.json` | `/ZidooMusicControl/v2/getDSPSourceInList?isDSP=1` | 2026-08-15 — per-input profile assignment + enable; the only place this mapping appears |
+| `getcdlist.json` | `/ZidooMusicControl/v2/getCDList` | **derived** — see below |
+| `getcdlist_empty.json` | `/ZidooMusicControl/v2/getCDList` | `[]` — the empty-tray shape, no disc loaded |
 
 ## The `getState` fixtures
 
@@ -130,3 +132,14 @@ the way — but keep *some* throwaway profile before exercising `saveDSPConfig`.
 and the value does not move when the device switches to an input using that profile.
 Nothing in this payload records which input uses which profile — that mapping appears
 only in `getDSPSourceInList`, captured as `getdspsourceinlist.json`.
+
+## `getcdlist.json`
+
+**Derived**, not a raw capture. Issue #36's research (device decompiled from the T10
+firmware, live-verified 2026-08-23 against `192.168.0.63`/`v1.1.80`) recorded the shape of
+a genuine `getCDList` response with a disc loaded — `info.url` is what `playCDMusic`'s
+`uri` must match exactly — but elided the 12-entry `musics` array as "…12 entries…" rather
+than transcribing it. This fixture reproduces the real `info` block verbatim and leaves
+`musics: []`, since the code under test only ever reads `info.url`. Replace with a real,
+untruncated capture if one is taken. `getcdlist_empty.json` (`[]`) is the empty-tray shape
+and needs no such caveat — an empty list is an empty list.
