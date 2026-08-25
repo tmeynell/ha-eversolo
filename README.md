@@ -72,10 +72,11 @@ out rather than failing when pressed.
 
 **Its source list carries the hardware inputs plus a synthetic `CD` source** on
 units with a disc drive. Picking `CD` switches the device to its internal
-player, which is the only input where transport actually controls the disc — it
-does not start playback; that is what the CD auto play switch is for. The
-source reads back as `CD` while a disc is loaded and the internal player is
-live.
+player and starts the loaded disc playing; selecting it with an empty tray
+raises an error instead of silently doing nothing. The CD auto play switch is
+for the other direction — starting playback as soon as a disc is inserted,
+without picking the source yourself. The source reads back as `CD` while a
+disc is loaded and the internal player is live.
 
 **The Visualization select's state is a slug, not the label you see.** Its
 three values are `off`, `vu_meter` and `spectrum`, displayed as Off, VU meter
@@ -147,9 +148,11 @@ your Home Assistant `custom_components/` folder, then restart Home Assistant.
 
 ## Configuration
 
-Use the `Add integration` dialog, search for `Eversolo`, and enter the host IP
-(or hostname) of your streamer. That is all you are asked for: the device is
-contacted on its fixed port 9529 and needs no username or password.
+Home Assistant discovers a streamer on your LAN via SSDP and offers it under
+`Settings → Devices & services → Discovered`; confirming it is all setup takes.
+Otherwise, use the `Add integration` dialog, search for `Eversolo`, and enter
+the host IP (or hostname) of your streamer. That is all you are asked for: the
+device is contacted on its fixed port 9529 and needs no username or password.
 
 The integration identifies your device by its hardware MAC address, so the same
 unit cannot be added twice. If its IP changes, use `Reconfigure` on the existing
@@ -160,11 +163,12 @@ Polling is fixed: live state (playback, volume, input) is read every 5
 seconds, and the settings tier (brightness, styles, routing, the toggles)
 every 30 seconds and again immediately after any write.
 
-The one thing that is configurable, via `Configure` on the integration entry,
-is an off-by-default option to look up cover art on MusicBrainz and the Cover
-Art Archive for Bluetooth playback — the only source the device itself never
-supplies art for. It is the only network traffic this integration ever sends
-off your local network, so it stays off unless you turn it on.
+The one thing that is configurable is an off-by-default option to look up
+cover art on MusicBrainz and the Cover Art Archive for Bluetooth playback — the
+only source the device itself never supplies art for. It is the only network
+traffic this integration ever sends off your local network, so it stays off
+unless you turn it on. The manual `Add integration` form offers it up front;
+either way, it can be flipped later via `Configure` on the integration entry.
 
 ## Known limitations
 
@@ -176,12 +180,11 @@ for the input in use, and whether output EQ is active, and nothing more.
 Choosing or editing a DSP profile, editing PEQ bands, and running DRC room
 correction are not in this release.
 
-**No auto-discovery.** Setup is by IP address only.
-
-**CD support is playback only.** Transport, disc metadata and CD auto play work.
-Tray/eject, ripping and disc details need the device's screen-mirroring channel
-and are not supported. The metadata the API gives for a disc is title, artist,
-duration and position — no album, and no track list.
+**CD support is playback only.** Transport, disc metadata, selecting the CD
+source, and CD auto play work. Tray/eject, ripping and disc details need the
+device's screen-mirroring channel and are not supported. The metadata the API
+gives for a disc is title, artist, duration and position — no album, and no
+track list.
 
 **Screen mirroring, touch injection, the file manager and the APK installer**
 are not supported.
