@@ -34,14 +34,23 @@ zip, verbatim.
 `v1.0.0` tag ships `"version": "v1.0.0"` to every HACS install, and HACS's
 version comparison doesn't expect the prefix.
 
+**`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).** Land
+entries under `## [Unreleased]` as part of the PR that makes the change, grouped under `Added`,
+`Changed`, `Fixed`, etc. — not saved up to be reconstructed from `git log` at release time.
+`tests/test_packaging.py` fails a version-bump PR that doesn't also turn `[Unreleased]` into a
+dated `## [X.Y.Z]` section, so the changelog can't drift from what actually shipped.
+
 **Release procedure:**
 
-1. Open a PR bumping the version in `custom_components/eversolo/manifest.json`.
+1. Open a PR that bumps the version in `custom_components/eversolo/manifest.json` and, in
+   `CHANGELOG.md`, renames `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (today's date) and adds
+   a fresh empty `## [Unreleased]` above it. Add the two compare-link references at the bottom
+   (`[Unreleased]` against the new tag, `[X.Y.Z]` against the previous one).
 2. Merge it through the normal gate.
 3. Tag the merge commit with the bare version number.
-4. Publish a GitHub release from that tag — this fires `release.yml`, which
-   writes the tag into the zipped manifest and attaches `eversolo.zip` to the
-   release.
+4. Publish a GitHub release from that tag, pasting the new `CHANGELOG.md` section as the release
+   body verbatim — this also fires `release.yml`, which writes the tag into the zipped manifest
+   and attaches `eversolo.zip` to the release.
 
 **What each part of the version bump means:**
 
