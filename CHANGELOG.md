@@ -6,6 +6,11 @@ SemVer contract in `CONTRIBUTING.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- Selecting `CD` with a malformed (but non-empty) disc-list response now raises the same clean
+  "No disc is loaded" error instead of an unhandled exception (#59).
+
 ## [1.2.0] - 2026-08-25
 
 ### Added
