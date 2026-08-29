@@ -257,3 +257,49 @@ async def test_a_missing_power_menu_does_not_cost_the_profile(
     assert profile.capabilities.has_cd is True
     # Only the one capability the power menu answers for is lost.
     assert profile.capabilities.has_screen_power is False
+
+
+async def test_seam_getcdlist_top_level_array_parse(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``_read`` decodes a top-level JSON array, not just an object (#60).
+
+    ``getCDList`` answers with ``[...]`` rather than ``{...}`` — the one shape
+    that used to go through the now-removed ``_read_list``. This is the direct
+    seam test for that path now that both methods are one.
+    """
+    aioclient_mock.get(
+        f"{BASE_URL}/ZidooMusicControl/v2/getCDList",
+        json=fixture_json("getcdlist.json"),
+    )
+
+    discs = await _client(hass).async_get_cd_list()
+
+    assert discs == [
+        {
+            "info": {
+                "cdInfoFrom": "MBID",
+                "discID": "rwsqcJuch3BaF1._qP.Xblult70-",
+                "id": 1523763174,
+                "name": "Circoloco @ DC10 Ibiza",
+                "date": "2006",
+                "url": "/dev/block/sr0",
+                "type": 0,
+            },
+            "musics": [],
+        }
+    ]
+
+
+async def test_seam_getcdlist_empty_tray_yields_empty_list(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """An empty tray answers ``[]``, not an error — still an array shape."""
+    aioclient_mock.get(
+        f"{BASE_URL}/ZidooMusicControl/v2/getCDList",
+        json=fixture_json("getcdlist_empty.json"),
+    )
+
+    discs = await _client(hass).async_get_cd_list()
+
+    assert discs == []

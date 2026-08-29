@@ -59,12 +59,8 @@ class EversoloApiClient:
         """Build a full URL for a port-9529 API path."""
         return f"http://{self._host}:{self._port}{path}"
 
-    async def _read(self, path: str) -> dict:
-        """GET an endpoint and return its decoded JSON body."""
-        return await self._api_wrapper(method="get", url=self._url(path))
-
-    async def _read_list(self, path: str) -> list[dict]:
-        """GET an endpoint whose JSON body is a top-level array, not an object."""
+    async def _read(self, path: str) -> dict | list[dict]:
+        """GET an endpoint and return its decoded JSON body (dict or array)."""
         return await self._api_wrapper(method="get", url=self._url(path))
 
     async def _command(self, path: str) -> None:
@@ -407,7 +403,7 @@ class EversoloApiClient:
         drive-capability flag only says the unit *has* a drive, not that one
         is *in* it.
         """
-        return await self._read_list("/ZidooMusicControl/v2/getCDList")
+        return await self._read("/ZidooMusicControl/v2/getCDList")
 
     async def async_play_cd_music(self, uri: str, index: int) -> None:
         """Make the disc at ``uri`` audible, starting at its ``index``-th track.
