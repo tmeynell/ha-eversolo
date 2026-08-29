@@ -23,7 +23,11 @@ from homeassistant.helpers.service_info.ssdp import (
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
-from custom_components.eversolo.const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DOMAIN
+from custom_components.eversolo.const import (
+    CONF_ENABLE_MUSICBRAINZ_LOOKUP,
+    DOMAIN,
+    NAME,
+)
 
 from .helpers import HOST, PORT, fixture_json
 
@@ -236,14 +240,15 @@ async def test_cannot_connect_is_recoverable(
     assert result["data"] == {CONF_HOST: HOST}
 
 
-async def test_ssdp_discovery_creates_entry_for_a_genuine_eversolo(
+async def test_ssdp_discovery_of_a_new_device_shows_confirm_form(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """A real Eversolo answering the manifest's SSDP matcher gets adopted.
+    """A real Eversolo answering the manifest's SSDP matcher is not auto-added.
 
     The SSDP identity alone (Platinum/Plutinosoft, generic MediaRenderer) is
-    not enough — the flow still hits ``getModel`` on 9529 before creating the
-    entry, same anchor as the manual path (#19).
+    not enough — the flow still hits ``getModel`` on 9529 to identify the
+    device, same anchor as the manual path (#19) — but first sightings stop
+    at a confirmation form rather than creating the entry outright (#63).
     """
     _mock_getmodel(aioclient_mock)
 
@@ -252,11 +257,104 @@ async def test_ssdp_discovery_creates_entry_for_a_genuine_eversolo(
         context={"source": config_entries.SOURCE_SSDP},
         data=_ssdp_discovery(),
     )
+
+    assert result["type"] is data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "ssdp_confirm"
+    assert result["description_placeholders"] == {"name": "DMP-A8 Gen 2"}
+
+    keys = {str(key) for key in result["data_schema"].schema}
+    assert keys == {CONF_ENABLE_MUSICBRAINZ_LOOKUP}
+
+
+async def test_ssdp_discovery_card_shows_the_devices_own_name(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A unit renamed in the Eversolo app shows that name, not the bare model.
+
+    ``EversoloDevice.name`` already falls back to the model when the device
+    has no custom ``deviceName`` (``EversoloDevice.from_model``); this just
+    confirms the flow actually uses that field rather than ``model`` (#73).
+    """
+    _mock_getmodel(aioclient_mock, deviceName="Living Room Streamer")
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+
+    assert result["description_placeholders"] == {"name": "Living Room Streamer"}
+
+    (progress,) = hass.config_entries.flow.async_progress()
+    assert progress["context"]["title_placeholders"] == {"name": "Living Room Streamer"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ENABLE_MUSICBRAINZ_LOOKUP: False}
+    )
+    await hass.async_block_till_done()
+
+    assert result["title"] == f"{NAME} Living Room Streamer"
+
+
+async def test_confirming_ssdp_discovery_creates_the_entry(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Submitting the confirm form creates the entry, same shape as before."""
+    _mock_getmodel(aioclient_mock)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ENABLE_MUSICBRAINZ_LOOKUP: False}
+    )
     await hass.async_block_till_done()
 
     assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"] == {CONF_HOST: HOST}
     assert result["result"].unique_id == UNIQUE_ID
+    assert result["options"] == {CONF_ENABLE_MUSICBRAINZ_LOOKUP: False}
+
+
+async def test_confirming_ssdp_discovery_enables_musicbrainz_lookup_when_checked(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The confirm form offers the same MusicBrainz toggle the manual flow does (#63)."""
+    _mock_getmodel(aioclient_mock)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["options"] == {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
+
+
+async def test_declining_ssdp_confirm_creates_no_entry(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Aborting the confirm form leaves no entry behind."""
+    _mock_getmodel(aioclient_mock)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+    assert result["type"] is data_entry_flow.FlowResultType.FORM
+
+    hass.config_entries.flow.async_abort(result["flow_id"])
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_entries(DOMAIN) == []
 
 
 async def test_ssdp_discovery_of_a_non_eversolo_device_is_rejected(

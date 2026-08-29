@@ -23,6 +23,7 @@ from .helpers import (
     GET_STATE,
     advance_cycles as _advance,
     calls_to,
+    fixture_json,
     prime_device,
     setup_integration as _setup,
     state_without,
@@ -205,6 +206,59 @@ async def test_identity_reaches_the_registry_once_the_device_answers(
     device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
     assert device.model == "DMP-A8 Gen 2"
     assert device.sw_version == "v1.1.50"
+
+
+async def test_a_rename_on_the_device_reaches_the_registry(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """Renaming the streamer in the Eversolo app updates HA's name (#73).
+
+    Unlike ``model``/``net_mac``/``firmware`` — hardware facts read once and
+    left alone — the name is the one identity field a user changes freely, so
+    it is the one still re-read every live cycle.
+    """
+    prime_device(aioclient_mock)
+    entry = await _setup(hass)
+
+    device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
+    assert device.name == "Eversolo DMP-A8 Gen 2"
+    (media_player_entity_id,) = hass.states.async_entity_ids("media_player")
+
+    renamed_state = fixture_json("getstate_spotify_disc_loaded.json")
+    renamed_state["deviceInfo"]["deviceName"] = "Living Room Streamer"
+    aioclient_mock.clear_requests()
+    prime_device(aioclient_mock, {GET_STATE: {"json": renamed_state}})
+    await _advance(hass, freezer, 1)
+
+    device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
+    assert device.name == "Eversolo Living Room Streamer"
+    # The rename doesn't disturb anything else identity carries, nor the
+    # entity_id automations key off (#73's explicit constraint) — only the
+    # registry's display name moved.
+    assert device.model == "DMP-A8 Gen 2"
+    assert hass.states.async_entity_ids("media_player") == [media_player_entity_id]
+
+
+async def test_a_blank_live_device_name_does_not_wipe_the_tracked_name(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """A live cycle reporting no name is silence, not a rename to nothing.
+
+    ``EversoloDevice.from_state`` applies no model fallback for a blank
+    ``deviceInfo.deviceName``, unlike ``from_model`` — so an empty string
+    here must be read the same as it not being reported at all.
+    """
+    prime_device(aioclient_mock)
+    entry = await _setup(hass)
+
+    blanked_state = fixture_json("getstate_spotify_disc_loaded.json")
+    blanked_state["deviceInfo"]["deviceName"] = ""
+    aioclient_mock.clear_requests()
+    prime_device(aioclient_mock, {GET_STATE: {"json": blanked_state}})
+    await _advance(hass, freezer, 1)
+
+    device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
+    assert device.name == "Eversolo DMP-A8 Gen 2"
 
 
 async def test_a_failing_settings_endpoint_does_not_blank_the_device(

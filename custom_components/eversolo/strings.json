@@ -1,5 +1,6 @@
 {
     "config": {
+        "flow_title": "{name}",
         "step": {
             "user": {
                 "title": "Add an Eversolo streamer",
@@ -21,6 +22,16 @@
                 },
                 "data_description": {
                     "host": "The address the streamer answers on now. Its entities and history are kept."
+                }
+            },
+            "ssdp_confirm": {
+                "title": "Eversolo streamer found",
+                "description": "A {name} was found on your network. Do you want to add it?",
+                "data": {
+                    "enable_musicbrainz_lookup": "Look up cover art for Bluetooth playback"
+                },
+                "data_description": {
+                    "enable_musicbrainz_lookup": "When a Bluetooth track has no cover of its own, look up its artist, title and album on musicbrainz.org and coverartarchive.org to find one. This is the only network traffic this integration sends off your local network, and it is off by default."
                 }
             }
         },

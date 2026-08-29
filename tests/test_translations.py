@@ -132,7 +132,7 @@ def test_config_flow_strings_cover_every_outcome() -> None:
     """Every reason and error the flow can produce is worded."""
     config = _load(STRINGS)["config"]
 
-    assert set(config["step"]) == {"user", "reconfigure"}
+    assert set(config["step"]) == {"user", "reconfigure", "ssdp_confirm"}
     assert {"cannot_connect", "unsupported_model"} <= set(config["error"])
     assert {
         "already_configured",

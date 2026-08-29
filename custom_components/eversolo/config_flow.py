@@ -29,7 +29,7 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
 from .api import EversoloApiClient, EversoloApiClientCommunicationError
-from .const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DEFAULT_PORT, DOMAIN, LOGGER, NAME
+from .const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DEFAULT_PORT, DOMAIN, LOGGER
 from .data import EversoloDevice
 
 STEP_DATA_SCHEMA = vol.Schema({vol.Required(CONF_HOST): cv.string})
@@ -68,6 +68,9 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
 
     VERSION = 3
 
+    _discovered_host: str
+    _discovered_name: str | None
+
     @staticmethod
     @callback
     def async_get_options_flow(
@@ -89,7 +92,7 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(format_mac(device.net_mac))
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"{NAME} {device.model}",
+                    title=device.display_title,
                     data={CONF_HOST: user_input[CONF_HOST]},
                     options={
                         CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
@@ -140,7 +143,9 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         answered — that embedded SDK isn't Eversolo-specific, so the same
         ``getModel`` admission check ``async_step_user`` applies is what
         actually confirms an Eversolo DMP is behind it. No entry is created
-        from the SSDP identity alone.
+        from the SSDP identity alone, nor from this step at all — a first
+        sighting only leads to the confirm form; ``async_step_ssdp_confirm``
+        is what creates the entry.
         """
         location = discovery_info.ssdp_location
         host = urlparse(location).hostname if location else None
@@ -157,11 +162,48 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         # module's docstring anchors on net_mac for. Passing the freshly
         # discovered host here lets that rediscovery heal a stale entry
         # instead of just reporting it configured and leaving it stranded.
+        # This is an update to an existing entry, not a new admission, so it
+        # stays automatic — only a device with no entry yet reaches the
+        # confirm step below.
         self._abort_if_unique_id_configured(updates={CONF_HOST: host})
 
-        return self.async_create_entry(
-            title=f"{NAME} {device.model}",
-            data={CONF_HOST: host},
+        self._discovered_host = host
+        self._discovered_name = device.name
+        # ``device.name`` is the unit's own configurable name, falling back to
+        # its model when unset (``EversoloDevice.from_model``) — using it here
+        # rather than the bare model means a renamed unit shows its real name
+        # on the discovery card and as the suggested entry title, not a
+        # generic "Eversolo DMP-A8 Gen 2" indistinguishable from any other.
+        self.context["title_placeholders"] = {"name": device.name}
+        return await self.async_step_ssdp_confirm()
+
+    async def async_step_ssdp_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask before adopting a device newly found by SSDP.
+
+        ``async_step_ssdp`` has already probed and validated the device by
+        the time this runs — this step only gates entry creation on the
+        user's say-so, so a device that's still powered on can't recreate an
+        entry the user just deleted.
+        """
+        if user_input is not None:
+            return self.async_create_entry(
+                title=EversoloDevice(name=self._discovered_name).display_title,
+                data={CONF_HOST: self._discovered_host},
+                options={
+                    CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
+                        CONF_ENABLE_MUSICBRAINZ_LOOKUP
+                    ]
+                },
+            )
+
+        return self.async_show_form(
+            step_id="ssdp_confirm",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, user_input or {}
+            ),
+            description_placeholders={"name": self._discovered_name},
         )
 
     @callback

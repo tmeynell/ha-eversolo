@@ -6,6 +6,16 @@ SemVer contract in `CONTRIBUTING.md`.
 
 ## [Unreleased]
 
+### Changed
+
+- SSDP discovery of a new device now shows a confirmation form instead of auto-creating the
+  entry, with the same MusicBrainz cover-art toggle the manual add flow offers; rediscovery of an
+  already-configured device still heals its host silently (#63).
+- Both the discovery card and the entry title now use the device's own name (set in the Eversolo
+  app), falling back to the model, instead of always showing the bare model name (#63, #73).
+- Renaming the streamer in the Eversolo app now updates its HA device name on the next poll,
+  instead of staying stuck on whatever name it had when the entry was added (#73).
+
 ### Fixed
 
 - Selecting `CD` with a malformed (but non-empty) disc-list response now raises the same clean
