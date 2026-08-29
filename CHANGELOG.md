@@ -10,6 +10,8 @@ SemVer contract in `CONTRIBUTING.md`.
 
 - Selecting `CD` with a malformed (but non-empty) disc-list response now raises the same clean
   "No disc is loaded" error instead of an unhandled exception (#59).
+- The current-selection VU/spectrum preview images now update their served picture when the
+  selection changes, instead of staying stuck on whichever picture was fetched first (#58).
 
 ## [1.2.0] - 2026-08-25
 

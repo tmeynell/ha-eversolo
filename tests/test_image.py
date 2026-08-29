@@ -14,8 +14,10 @@ independent refresh timer.
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest.mock import AsyncMock, patch
 
 import aiohttp
+from homeassistant.components.image import Image
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
@@ -203,6 +205,46 @@ async def test_current_selection_preview_moves_when_the_selection_changes(
     assert entity.image_url.endswith("t10_setting_uv_default05.png")
     assert entity.image_last_updated is not None
     assert entity.image_last_updated > first_stamp
+
+
+async def test_current_selection_preview_serves_fresh_bytes_after_selection_moves(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """``async_image`` fetches again after the selection moves, not stale bytes.
+
+    The base ``ImageEntity.async_image`` caches whatever it first fetched in
+    ``_cached_image`` and only ever re-fetches if that cache is cleared —
+    exercising it (not just ``image_url``/``image_last_updated``) is what
+    would have caught a regression here (#58).
+    """
+    prime_device(aioclient_mock)
+    await setup_integration(hass)
+    entity = entity_object(hass, entity_id_for(hass, "_vu_style_current_preview"))
+
+    async def _load_image_from_url(url: str):
+        return Image(content=url.encode(), content_type="image/png")
+
+    with patch(
+        "homeassistant.components.image.ImageEntity._async_load_image_from_url",
+        AsyncMock(side_effect=_load_image_from_url),
+    ) as load_mock:
+        first_bytes = await entity.async_image()
+        assert first_bytes == entity.image_url.encode()
+
+        moved = fixture_json("getvumodelist.json")
+        moved["currentIndex"] = 0
+        aioclient_mock.clear_requests()
+        prime_device(
+            aioclient_mock,
+            {"/SystemSettings/displaySettings/getVUModeList": {"json": moved}},
+        )
+        await advance_cycles(hass, freezer, 6)
+
+        second_bytes = await entity.async_image()
+
+    assert load_mock.await_count == 2
+    assert second_bytes == entity.image_url.encode()
+    assert second_bytes != first_bytes
 
 
 async def test_current_selection_preview_is_a_noop_when_selection_is_unchanged(

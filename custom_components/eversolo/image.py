@@ -199,11 +199,19 @@ class _EversoloOptionListPreviewImage(EversoloEntity, ImageEntity):
         raise NotImplementedError
 
     def _set_image_url(self) -> None:
-        """Resolve and store the picture URL, timestamping it as fresh."""
+        """Resolve and store the picture URL, timestamping it as fresh.
+
+        Also drops the base ``ImageEntity``'s ``_cached_image`` bytes: it
+        caches whatever ``async_image`` first fetched and never re-fetches on
+        its own, so a resolved-URL change here would otherwise keep serving
+        the previous picture forever (HA's ``fyta`` integration hits the same
+        staleness and clears its cache the same way).
+        """
         option = self._resolve_option()
         self._attr_image_url = self.coordinator.client.create_image_url_or_none(
             option.preview_path if option else None
         )
+        self._cached_image = None
         self._attr_image_last_updated = dt_util.utcnow()
 
     def _handle_coordinator_update(self) -> None:
