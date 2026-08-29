@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
@@ -11,7 +14,14 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.loader import async_get_integration
 
 from .api import EversoloApiClient, EversoloApiClientError
-from .const import DEFAULT_PORT, DOMAIN, LOGGER, MUSICBRAINZ_CONTACT_URL, NAME
+from .const import (
+    DEFAULT_CD_IMAGE_URL_PATH,
+    DEFAULT_PORT,
+    DOMAIN,
+    LOGGER,
+    MUSICBRAINZ_CONTACT_URL,
+    NAME,
+)
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .musicbrainz import EversoloMusicBrainzClient
 
@@ -113,8 +123,35 @@ async def _async_build_musicbrainz_client(
     return EversoloMusicBrainzClient(async_get_clientsession(hass), user_agent)
 
 
+async def _async_register_static_assets(hass: HomeAssistant) -> None:
+    """Serve the bundled default-CD image (#65) at its fixed HA-hosted path.
+
+    Registering the same static path twice (a second config entry, or a
+    reload) would add a duplicate route, so this only runs once per hass
+    instance — guarded here rather than left to HA's own static-path
+    machinery, which has no such check itself.
+    """
+    registered = hass.data.setdefault(DOMAIN, {})
+    if registered.get("static_assets_registered"):
+        return
+    registered["static_assets_registered"] = True
+
+    assets_dir = Path(__file__).parent / "assets"
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(
+                DEFAULT_CD_IMAGE_URL_PATH,
+                str(assets_dir / "default_cd.svg"),
+                cache_headers=True,
+            )
+        ]
+    )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: EversoloConfigEntry) -> bool:
     """Set up this integration using UI."""
+    await _async_register_static_assets(hass)
+
     coordinator = EversoloDataUpdateCoordinator(
         hass=hass,
         config_entry=entry,
