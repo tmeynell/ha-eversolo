@@ -1,5 +1,6 @@
 {
     "config": {
+        "flow_title": "{name}",
         "step": {
             "user": {
                 "title": "Add an Eversolo streamer",
@@ -25,7 +26,7 @@
             },
             "ssdp_confirm": {
                 "title": "Eversolo streamer found",
-                "description": "A {model} was found on your network. Do you want to add it?",
+                "description": "A {name} was found on your network. Do you want to add it?",
                 "data": {
                     "enable_musicbrainz_lookup": "Look up cover art for Bluetooth playback"
                 },

@@ -23,7 +23,11 @@ from homeassistant.helpers.service_info.ssdp import (
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
-from custom_components.eversolo.const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DOMAIN
+from custom_components.eversolo.const import (
+    CONF_ENABLE_MUSICBRAINZ_LOOKUP,
+    DOMAIN,
+    NAME,
+)
 
 from .helpers import HOST, PORT, fixture_json
 
@@ -256,10 +260,40 @@ async def test_ssdp_discovery_of_a_new_device_shows_confirm_form(
 
     assert result["type"] is data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "ssdp_confirm"
-    assert result["description_placeholders"] == {"model": "DMP-A8 Gen 2"}
+    assert result["description_placeholders"] == {"name": "DMP-A8 Gen 2"}
 
     keys = {str(key) for key in result["data_schema"].schema}
     assert keys == {CONF_ENABLE_MUSICBRAINZ_LOOKUP}
+
+
+async def test_ssdp_discovery_card_shows_the_devices_own_name(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A unit renamed in the Eversolo app shows that name, not the bare model.
+
+    ``EversoloDevice.name`` already falls back to the model when the device
+    has no custom ``deviceName`` (``EversoloDevice.from_model``); this just
+    confirms the flow actually uses that field rather than ``model`` (#73).
+    """
+    _mock_getmodel(aioclient_mock, deviceName="Living Room Streamer")
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+
+    assert result["description_placeholders"] == {"name": "Living Room Streamer"}
+
+    (progress,) = hass.config_entries.flow.async_progress()
+    assert progress["context"]["title_placeholders"] == {"name": "Living Room Streamer"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ENABLE_MUSICBRAINZ_LOOKUP: False}
+    )
+    await hass.async_block_till_done()
+
+    assert result["title"] == f"{NAME} Living Room Streamer"
 
 
 async def test_confirming_ssdp_discovery_creates_the_entry(

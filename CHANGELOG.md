@@ -11,6 +11,8 @@ SemVer contract in `CONTRIBUTING.md`.
 - SSDP discovery of a new device now shows a confirmation form instead of auto-creating the
   entry, with the same MusicBrainz cover-art toggle the manual add flow offers; rediscovery of an
   already-configured device still heals its host silently (#63).
+- Both the discovery card and the entry title now use the device's own name (set in the Eversolo
+  app), falling back to the model, instead of always showing the bare model name (#63, #73).
 
 ### Fixed
 

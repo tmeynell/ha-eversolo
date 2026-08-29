@@ -69,7 +69,7 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
     VERSION = 3
 
     _discovered_host: str
-    _discovered_model: str
+    _discovered_name: str | None
 
     @staticmethod
     @callback
@@ -92,7 +92,7 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(format_mac(device.net_mac))
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"{NAME} {device.model}",
+                    title=f"{NAME} {device.name}",
                     data={CONF_HOST: user_input[CONF_HOST]},
                     options={
                         CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
@@ -168,8 +168,13 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured(updates={CONF_HOST: host})
 
         self._discovered_host = host
-        self._discovered_model = device.model
-        self.context["title_placeholders"] = {"model": device.model}
+        self._discovered_name = device.name
+        # ``device.name`` is the unit's own configurable name, falling back to
+        # its model when unset (``EversoloDevice.from_model``) — using it here
+        # rather than the bare model means a renamed unit shows its real name
+        # on the discovery card and as the suggested entry title, not a
+        # generic "Eversolo DMP-A8 Gen 2" indistinguishable from any other.
+        self.context["title_placeholders"] = {"name": device.name}
         return await self.async_step_ssdp_confirm()
 
     async def async_step_ssdp_confirm(
@@ -184,7 +189,7 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         """
         if user_input is not None:
             return self.async_create_entry(
-                title=f"{NAME} {self._discovered_model}",
+                title=f"{NAME} {self._discovered_name}",
                 data={CONF_HOST: self._discovered_host},
                 options={
                     CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
@@ -198,7 +203,7 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
             data_schema=self.add_suggested_values_to_schema(
                 OPTIONS_SCHEMA, user_input or {}
             ),
-            description_placeholders={"model": self._discovered_model},
+            description_placeholders={"name": self._discovered_name},
         )
 
     @callback
