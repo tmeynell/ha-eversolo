@@ -258,6 +258,9 @@ async def test_ssdp_discovery_of_a_new_device_shows_confirm_form(
     assert result["step_id"] == "ssdp_confirm"
     assert result["description_placeholders"] == {"model": "DMP-A8 Gen 2"}
 
+    keys = {str(key) for key in result["data_schema"].schema}
+    assert keys == {CONF_ENABLE_MUSICBRAINZ_LOOKUP}
+
 
 async def test_confirming_ssdp_discovery_creates_the_entry(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
@@ -270,12 +273,35 @@ async def test_confirming_ssdp_discovery_creates_the_entry(
         context={"source": config_entries.SOURCE_SSDP},
         data=_ssdp_discovery(),
     )
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ENABLE_MUSICBRAINZ_LOOKUP: False}
+    )
     await hass.async_block_till_done()
 
     assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"] == {CONF_HOST: HOST}
     assert result["result"].unique_id == UNIQUE_ID
+    assert result["options"] == {CONF_ENABLE_MUSICBRAINZ_LOOKUP: False}
+
+
+async def test_confirming_ssdp_discovery_enables_musicbrainz_lookup_when_checked(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The confirm form offers the same MusicBrainz toggle the manual flow does (#63)."""
+    _mock_getmodel(aioclient_mock)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_discovery(),
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["options"] == {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
 
 
 async def test_declining_ssdp_confirm_creates_no_entry(

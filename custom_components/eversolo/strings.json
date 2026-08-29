@@ -25,7 +25,13 @@
             },
             "ssdp_confirm": {
                 "title": "Eversolo streamer found",
-                "description": "A {model} was found on your network. Do you want to add it?"
+                "description": "A {model} was found on your network. Do you want to add it?",
+                "data": {
+                    "enable_musicbrainz_lookup": "Look up cover art for Bluetooth playback"
+                },
+                "data_description": {
+                    "enable_musicbrainz_lookup": "When a Bluetooth track has no cover of its own, look up its artist, title and album on musicbrainz.org and coverartarchive.org to find one. This is the only network traffic this integration sends off your local network, and it is off by default."
+                }
             }
         },
         "error": {

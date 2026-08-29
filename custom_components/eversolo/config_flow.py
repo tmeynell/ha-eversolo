@@ -186,10 +186,18 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title=f"{NAME} {self._discovered_model}",
                 data={CONF_HOST: self._discovered_host},
+                options={
+                    CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
+                        CONF_ENABLE_MUSICBRAINZ_LOOKUP
+                    ]
+                },
             )
 
         return self.async_show_form(
             step_id="ssdp_confirm",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, user_input or {}
+            ),
             description_placeholders={"model": self._discovered_model},
         )
 

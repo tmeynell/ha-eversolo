@@ -9,7 +9,8 @@ SemVer contract in `CONTRIBUTING.md`.
 ### Changed
 
 - SSDP discovery of a new device now shows a confirmation form instead of auto-creating the
-  entry; rediscovery of an already-configured device still heals its host silently (#63).
+  entry, with the same MusicBrainz cover-art toggle the manual add flow offers; rediscovery of an
+  already-configured device still heals its host silently (#63).
 
 ### Fixed
 
