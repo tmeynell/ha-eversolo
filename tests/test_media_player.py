@@ -588,6 +588,31 @@ async def test_selecting_cd_with_no_disc_loaded_is_refused(
     assert calls_to(aioclient_mock, SET_INPUT) == 0
 
 
+async def test_selecting_cd_with_a_malformed_disc_entry_is_refused(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#59: a malformed-but-non-empty ``getCDList`` must not raise raw.
+
+    ``getCDList`` is documented as unreliable — a non-empty entry missing
+    ``info``/``url`` must raise the same clean "No disc is loaded" error as
+    an empty list, not an unhandled exception.
+    """
+    entity_id = await _player(
+        hass,
+        aioclient_mock,
+        _streaming()
+        | {GET_CD_LIST: {"json": fixture_json("getcdlist_malformed.json")}},
+    )
+
+    with pytest.raises(ServiceValidationError):
+        await _call(
+            hass, SERVICE_SELECT_SOURCE, entity_id, **{ATTR_INPUT_SOURCE: CD_SOURCE}
+        )
+
+    assert calls_to(aioclient_mock, PLAY_CD_MUSIC) == 0
+    assert calls_to(aioclient_mock, SET_INPUT) == 0
+
+
 async def test_cd_source_stays_listed_with_no_disc_loaded(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
