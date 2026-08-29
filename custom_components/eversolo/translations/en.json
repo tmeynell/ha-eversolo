@@ -22,6 +22,10 @@
                 "data_description": {
                     "host": "The address the streamer answers on now. Its entities and history are kept."
                 }
+            },
+            "ssdp_confirm": {
+                "title": "Eversolo streamer found",
+                "description": "A {model} was found on your network. Do you want to add it?"
             }
         },
         "error": {

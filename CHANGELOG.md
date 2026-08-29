@@ -6,6 +6,11 @@ SemVer contract in `CONTRIBUTING.md`.
 
 ## [Unreleased]
 
+### Changed
+
+- SSDP discovery of a new device now shows a confirmation form instead of auto-creating the
+  entry; rediscovery of an already-configured device still heals its host silently (#63).
+
 ### Fixed
 
 - Selecting `CD` with a malformed (but non-empty) disc-list response now raises the same clean

@@ -68,6 +68,9 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
 
     VERSION = 3
 
+    _discovered_host: str
+    _discovered_model: str
+
     @staticmethod
     @callback
     def async_get_options_flow(
@@ -140,7 +143,9 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         answered — that embedded SDK isn't Eversolo-specific, so the same
         ``getModel`` admission check ``async_step_user`` applies is what
         actually confirms an Eversolo DMP is behind it. No entry is created
-        from the SSDP identity alone.
+        from the SSDP identity alone, nor from this step at all — a first
+        sighting only leads to the confirm form; ``async_step_ssdp_confirm``
+        is what creates the entry.
         """
         location = discovery_info.ssdp_location
         host = urlparse(location).hostname if location else None
@@ -157,11 +162,35 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         # module's docstring anchors on net_mac for. Passing the freshly
         # discovered host here lets that rediscovery heal a stale entry
         # instead of just reporting it configured and leaving it stranded.
+        # This is an update to an existing entry, not a new admission, so it
+        # stays automatic — only a device with no entry yet reaches the
+        # confirm step below.
         self._abort_if_unique_id_configured(updates={CONF_HOST: host})
 
-        return self.async_create_entry(
-            title=f"{NAME} {device.model}",
-            data={CONF_HOST: host},
+        self._discovered_host = host
+        self._discovered_model = device.model
+        self.context["title_placeholders"] = {"model": device.model}
+        return await self.async_step_ssdp_confirm()
+
+    async def async_step_ssdp_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask before adopting a device newly found by SSDP.
+
+        ``async_step_ssdp`` has already probed and validated the device by
+        the time this runs — this step only gates entry creation on the
+        user's say-so, so a device that's still powered on can't recreate an
+        entry the user just deleted.
+        """
+        if user_input is not None:
+            return self.async_create_entry(
+                title=f"{NAME} {self._discovered_model}",
+                data={CONF_HOST: self._discovered_host},
+            )
+
+        return self.async_show_form(
+            step_id="ssdp_confirm",
+            description_placeholders={"model": self._discovered_model},
         )
 
     @callback
