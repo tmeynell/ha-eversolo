@@ -29,6 +29,7 @@ set on every restart, which is a worse bug than the one being avoided.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import timedelta
 from typing import Any
 
@@ -51,6 +52,7 @@ from .const import (
     DOMAIN,
     LIVE_UPDATE_INTERVAL,
     LOGGER,
+    NAME,
     PLAY_TYPE_BLUETOOTH,
     PROCESSING_GATE_CYCLES,
     SETTINGS_REFRESH_CYCLES,
@@ -235,6 +237,8 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
             # else, so the profile read is handed the slice rather than asking
             # the device for the same payload again.
             await self._async_read_profile(data.processing)
+        else:
+            self._track_device_name(data.device.name)
         self._settle_capability_gates(data.processing)
         self._maybe_lookup_bluetooth_cover(data.playback)
 
@@ -386,12 +390,33 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         self.async_update_listeners()
 
     @callback
+    def _track_device_name(self, live_name: str | None) -> None:
+        """Follow the name the user sets on the device itself, unlike model/mac.
+
+        Everything else in ``EversoloDevice`` is a hardware fact, read once and
+        final (module docstring). The name is not: it is the one field a user
+        changes from the Eversolo app whenever they like, so — alone among the
+        identity fields — it is re-read every live cycle and pushed to the
+        registry when it moves (#73). Pushing the bare ``name`` rather than
+        touching the config entry's title leaves ``entity_id`` untouched, and
+        a device the user has manually renamed inside HA is left alone too:
+        ``name`` only backs the registry's *suggested* name, which HA's own
+        ``name_by_user`` already overrides in the frontend without this
+        integration having to know that happened.
+        """
+        if live_name is None or live_name == self._device.name:
+            return
+        self._device = replace(self._device, name=live_name)
+        self._async_update_device_registry()
+
+    @callback
     def _async_update_device_registry(self) -> None:
-        """Fill in model and firmware for a device that was off at setup.
+        """Fill in identity fields the registry entry didn't have at setup.
 
         Entities capture their ``DeviceInfo`` when they are created, which can
-        be before the unit has ever answered, so the registry needs the identity
-        pushed to it once the profile finally lands.
+        be before the unit has ever answered, so the registry needs the
+        identity pushed to it once the profile finally lands — and, for
+        ``name`` alone, again whenever ``_track_device_name`` sees it move.
         """
         registry = dr.async_get(self.hass)
         device = registry.async_get_device(
@@ -401,6 +426,12 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
             return
         registry.async_update_device(
             device.id,
+            # Same "{NAME} {device.name}" shape config_flow.py gives the entry
+            # title at setup — pushing the bare device name here would strip
+            # that prefix off the very first call, before anything has moved.
+            # UNDEFINED (not None) when there is nothing yet: passing None
+            # would clear the registry's name outright rather than leave it.
+            name=f"{NAME} {self.device.name}" if self.device.name else dr.UNDEFINED,
             model=self.device.model,
             sw_version=self.device.firmware,
         )
