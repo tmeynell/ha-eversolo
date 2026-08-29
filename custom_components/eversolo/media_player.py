@@ -401,14 +401,19 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         answers ``{"status": 200}`` and silently does nothing. An empty
         ``getCDList`` is the "no disc loaded" signal: the ``CD`` source stays
         listed either way, but selecting it with nothing in the tray raises
-        rather than firing a call that would just as silently no-op.
+        rather than firing a call that would just as silently no-op. This
+        API is known to answer unreliably (#59), so a non-empty response
+        missing ``info``/``url`` raises the same clean error rather than an
+        unhandled ``KeyError``/``TypeError``.
         """
         discs = await self.coordinator.client.async_get_cd_list()
         if not discs:
             raise ServiceValidationError("No disc is loaded")
-        await self.coordinator.client.async_play_cd_music(
-            discs[0]["info"]["url"], index=0
-        )
+        try:
+            url = discs[0]["info"]["url"]
+        except (KeyError, TypeError):
+            raise ServiceValidationError("No disc is loaded") from None
+        await self.coordinator.client.async_play_cd_music(url, index=0)
         self._expect(source=CD_SOURCE)
 
     # ------------------------------------------------------------------
