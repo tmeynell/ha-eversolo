@@ -239,6 +239,28 @@ async def test_a_rename_on_the_device_reaches_the_registry(
     assert hass.states.async_entity_ids("media_player") == [media_player_entity_id]
 
 
+async def test_a_blank_live_device_name_does_not_wipe_the_tracked_name(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """A live cycle reporting no name is silence, not a rename to nothing.
+
+    ``EversoloDevice.from_state`` applies no model fallback for a blank
+    ``deviceInfo.deviceName``, unlike ``from_model`` — so an empty string
+    here must be read the same as it not being reported at all.
+    """
+    prime_device(aioclient_mock)
+    entry = await _setup(hass)
+
+    blanked_state = fixture_json("getstate_spotify_disc_loaded.json")
+    blanked_state["deviceInfo"]["deviceName"] = ""
+    aioclient_mock.clear_requests()
+    prime_device(aioclient_mock, {GET_STATE: {"json": blanked_state}})
+    await _advance(hass, freezer, 1)
+
+    device = dr.async_get(hass).async_get_device({(DOMAIN, entry.entry_id)})
+    assert device.name == "Eversolo DMP-A8 Gen 2"
+
+
 async def test_a_failing_settings_endpoint_does_not_blank_the_device(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
 ) -> None:

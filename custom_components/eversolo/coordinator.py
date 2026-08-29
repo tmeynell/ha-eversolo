@@ -52,7 +52,6 @@ from .const import (
     DOMAIN,
     LIVE_UPDATE_INTERVAL,
     LOGGER,
-    NAME,
     PLAY_TYPE_BLUETOOTH,
     PROCESSING_GATE_CYCLES,
     SETTINGS_REFRESH_CYCLES,
@@ -404,7 +403,12 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         ``name_by_user`` already overrides in the frontend without this
         integration having to know that happened.
         """
-        if live_name is None or live_name == self._device.name:
+        # Falsy, not just ``None``: ``EversoloDevice.from_state`` (unlike
+        # ``from_model``) applies no model fallback for a blank
+        # ``deviceInfo.deviceName``, so an empty string is this tier's way of
+        # saying nothing was reported — not the device asking to be renamed
+        # to nothing.
+        if not live_name or live_name == self._device.name:
             return
         self._device = replace(self._device, name=live_name)
         self._async_update_device_registry()
@@ -426,12 +430,13 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
             return
         registry.async_update_device(
             device.id,
-            # Same "{NAME} {device.name}" shape config_flow.py gives the entry
-            # title at setup — pushing the bare device name here would strip
-            # that prefix off the very first call, before anything has moved.
-            # UNDEFINED (not None) when there is nothing yet: passing None
-            # would clear the registry's name outright rather than leave it.
-            name=f"{NAME} {self.device.name}" if self.device.name else dr.UNDEFINED,
+            # ``display_title`` is the same "{NAME} {name}" shape
+            # config_flow.py gives the entry title at setup — pushing the
+            # bare device name here would strip that prefix off the very
+            # first call, before anything has moved. UNDEFINED (not None)
+            # when there is nothing yet: passing None would clear the
+            # registry's name outright rather than leave it.
+            name=self.device.display_title if self.device.name else dr.UNDEFINED,
             model=self.device.model,
             sw_version=self.device.firmware,
         )

@@ -32,6 +32,13 @@ def test_device_parses_from_getmodel() -> None:
     assert device.android_version == "14"
 
 
+def test_display_title_prefixes_the_devices_own_name() -> None:
+    """The one shared "{NAME} {name}" spelling every title/registry push uses."""
+    assert EversoloDevice(name="Living Room Streamer").display_title == (
+        "Eversolo Living Room Streamer"
+    )
+
+
 def test_playback_parses_spotify_disc_loaded_state() -> None:
     """Disc in the tray, Spotify Connect audible: playType (6) picks Spotify.
 

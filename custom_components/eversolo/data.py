@@ -16,6 +16,7 @@ from collections.abc import Callable, Iterator, Mapping
 
 from .const import (
     INPUT_INTERNAL_PLAYER,
+    NAME,
     POWER_TAG_SCREEN,
     SETTING_TAG_ANALOG_PANEL,
     SETTING_TAG_AUTO_CHANGE_SOURCE,
@@ -830,6 +831,17 @@ class EversoloDevice:
     wif_mac: str | None = None
     firmware: str | None = None
     android_version: str | None = None
+
+    @property
+    def display_title(self) -> str:
+        """The "{NAME} {name}" string every entry title/registry name uses.
+
+        One shared spelling for the three places that build it
+        (``config_flow.py``'s ``user``/``ssdp_confirm`` steps and the
+        coordinator's device-registry push) rather than three copies of the
+        same f-string to keep in sync.
+        """
+        return f"{NAME} {self.name}"
 
     @classmethod
     def from_model(cls, model: Mapping[str, Any]) -> EversoloDevice:

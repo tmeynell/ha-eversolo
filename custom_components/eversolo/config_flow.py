@@ -29,7 +29,7 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
 from .api import EversoloApiClient, EversoloApiClientCommunicationError
-from .const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DEFAULT_PORT, DOMAIN, LOGGER, NAME
+from .const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DEFAULT_PORT, DOMAIN, LOGGER
 from .data import EversoloDevice
 
 STEP_DATA_SCHEMA = vol.Schema({vol.Required(CONF_HOST): cv.string})
@@ -92,7 +92,7 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(format_mac(device.net_mac))
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"{NAME} {device.name}",
+                    title=device.display_title,
                     data={CONF_HOST: user_input[CONF_HOST]},
                     options={
                         CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
@@ -189,7 +189,7 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         """
         if user_input is not None:
             return self.async_create_entry(
-                title=f"{NAME} {self._discovered_name}",
+                title=EversoloDevice(name=self._discovered_name).display_title,
                 data={CONF_HOST: self._discovered_host},
                 options={
                     CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
