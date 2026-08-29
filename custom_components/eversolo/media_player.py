@@ -37,7 +37,7 @@ from homeassistant.components.media_player import (
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
-from .const import CD_SOURCE, LOGGER, PLAY_TYPE_BLUETOOTH
+from .const import CD_SOURCE, DEFAULT_CD_IMAGE_URL_PATH, LOGGER, PLAY_TYPE_BLUETOOTH
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import EversoloPlayback, EversoloVolume
 from .entity import EversoloEntity
@@ -283,6 +283,14 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         for this exact track — ``None`` while that lookup is off, still
         running, or came back empty, same as the device's own "nothing" would
         read.
+
+        A disc with no discovered metadata at all (#65) is the other
+        exception: the song-id lookup has nothing to key off and 806s, same
+        as it would for a nonexistent id, so that branch is skipped in favour
+        of a bundled default-CD image before it is ever attempted. Gated on
+        ``is_local_source`` as well as ``is_cd``, same as ``source`` (#03) —
+        ``extension`` can otherwise still read "cd" from a stale disc sitting
+        in the tray while a different source is what's actually audible.
         """
         playback = self._playback
         client = self.coordinator.client
@@ -293,6 +301,12 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
             if playback.art_url.startswith("http"):
                 return playback.art_url
             return client.create_image_url_by_path(playback.art_url)
+        if (
+            playback.is_local_source
+            and playback.is_cd
+            and not (playback.title or playback.artist or playback.album)
+        ):
+            return DEFAULT_CD_IMAGE_URL_PATH
         if playback.song_id is not None:
             return client.create_image_url_by_song_id(
                 playback.song_id, playback.music_type

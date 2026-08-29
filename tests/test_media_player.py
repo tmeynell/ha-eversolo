@@ -38,6 +38,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 from custom_components.eversolo import wake_on_lan
 from custom_components.eversolo.const import (
     CD_SOURCE,
+    DEFAULT_CD_IMAGE_URL_PATH,
     SETTING_TAG_CD_AUTO_PLAY,
     WAKE_ON_LAN_PORTS,
 )
@@ -515,6 +516,53 @@ async def test_the_discs_cover_url_carries_the_params_the_device_needs(
     assert "musicType=4" in url
     assert "type=4" in url
     assert "target=16" in url
+
+
+async def test_a_metadataless_disc_shows_the_bundled_default_cover(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#65: a disc with no discovered title/artist/album gets a real image.
+
+    The song-id lookup has nothing to key off in this case (no cover to
+    return), so it must not even be attempted — only the bundled default is.
+    """
+    state = fixture_json("getstate_cd.json")
+    state["playingMusic"]["title"] = ""
+    state["playingMusic"]["artist"] = ""
+    state["playingMusic"]["album"] = ""
+
+    entity_id = await _player(hass, aioclient_mock, {GET_STATE: {"json": state}})
+
+    assert entity_object(hass, entity_id).media_image_url == DEFAULT_CD_IMAGE_URL_PATH
+
+
+async def test_a_disc_missing_only_some_metadata_still_uses_the_song_id_lookup(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#65: any one of title/artist/album present means real metadata exists."""
+    state = fixture_json("getstate_cd.json")
+    state["playingMusic"]["artist"] = ""
+    state["playingMusic"]["album"] = ""
+
+    entity_id = await _player(hass, aioclient_mock, {GET_STATE: {"json": state}})
+
+    url = entity_object(hass, entity_id).media_image_url
+    assert url != DEFAULT_CD_IMAGE_URL_PATH
+    assert "id=128670077" in url
+
+
+async def test_a_stale_disc_in_the_tray_never_shows_the_default_cover(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """#65: the default is gated on ``is_local_source`` too, same as ``source`` (#03).
+
+    A disc merely sitting in the tray while something else plays must not be
+    mistaken for a metadata-less disc actually being listened to.
+    """
+    entity_id = await _player(hass, aioclient_mock)
+
+    url = entity_object(hass, entity_id).media_image_url
+    assert url != DEFAULT_CD_IMAGE_URL_PATH
 
 
 async def test_form_icon_is_a_last_resort_when_streaming_has_no_art(

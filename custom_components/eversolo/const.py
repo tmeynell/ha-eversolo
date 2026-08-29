@@ -49,6 +49,13 @@ INPUT_INTERNAL_PLAYER = "XMOS"
 # optional MusicBrainz lookup (#18) targets.
 PLAY_TYPE_BLUETOOTH = 4
 
+# Bundled fallback art for a disc the device has found no metadata for (#65) —
+# the song-id cover lookup has nothing to return in that case. Served by HA
+# itself, not the device, so this is a path rather than a device-relative one;
+# ``media_player``'s own image-fetch machinery already resolves a hostname-less
+# URL against HA's own base URL (see ``_async_fetch_image_from_cache``).
+DEFAULT_CD_IMAGE_URL_PATH = f"/api/{DOMAIN}/default_cd.svg"
+
 # The power menu's tag for the screen. ``setPowerOption?tag=screen`` toggles the
 # front display, and the tag appearing in ``getPowerOption`` is the only thing
 # that says the unit has a screen to switch — nothing anywhere reports whether
