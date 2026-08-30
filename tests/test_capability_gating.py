@@ -322,7 +322,7 @@ GATES: tuple[Gate, ...] = (
 # The entities no capability gates. At least one must survive every mutation
 # above, or "the gate worked" and "setup fell over" look identical.
 UNGATED = (
-    ("image", "_panel_screenshot"),
+    ("camera", "_panel_camera"),
     ("media_player", "_media_player"),
     ("sensor", "_audio_format"),
     ("sensor", "_input"),

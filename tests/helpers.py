@@ -57,11 +57,14 @@ GET_KNOB_BRIGHTNESS = "/SystemSettings/displaySettings/getKnobBrightness"
 # *new* endpoint rather than replacing one, so a near-miss would silently leave
 # the captured payload answering instead of the override.
 GET_KNOB_OPTION = "/SystemSettings/displaySettings/getKnobSettingOption"
-GET_SCREENSHOT = "/ZidooControlCenter/getScreenShot"
 # Read on demand by ``async_select_source(CD)``, not polled every cycle — so
 # it is deliberately absent from ``DEVICE_ENDPOINTS`` below; a test that needs
 # it registers it itself via ``prime_device``'s overrides.
 GET_CD_LIST = "/ZidooMusicControl/v2/getCDList"
+# Opened on demand by the panel camera (#38), not polled — the mocker matches
+# on path alone (see ``calls_to``/``query_of``), so this one constant covers
+# both the ``mode=1`` handshake and the ``mode=0`` teardown call.
+SETCASTMODE = "/ZidooControlCenter/setcastmode"
 
 # Every endpoint the coordinator polls, with the capture that answers it.
 DEVICE_ENDPOINTS: dict[str, str] = {

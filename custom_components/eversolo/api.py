@@ -55,6 +55,16 @@ class EversoloApiClient:
         self._port = port
         self._session = session
 
+    @property
+    def host(self) -> str:
+        """The device's configured host.
+
+        Exposed for the cast-mode session (:mod:`.cast_session`): the handshake's own ``ip``
+        field is preferred for the raw TCP connect, but a payload that omits it falls back to
+        this — the same host every HTTP call here already uses.
+        """
+        return self._host
+
     def _url(self, path: str) -> str:
         """Build a full URL for a port-9529 API path."""
         return f"http://{self._host}:{self._port}{path}"
@@ -456,22 +466,26 @@ class EversoloApiClient:
         """
         return self.create_image_url_by_path(path) if path else None
 
-    async def async_get_screenshot(self) -> bytes:
-        """Fetch the front panel's current contents as a PNG (#37).
+    async def async_start_cast_session(self) -> dict:
+        """Open a cast-mode session and return its handshake (#38).
 
-        Capitalisation matters: ``getScreenshot``/``screenshot`` both answer
-        ``{"status":804,"msg":"Url error"}``, only ``getScreenShot`` (capital
-        S) works. Firmware without this endpoint answers the same way — HTTP
-        200 with that JSON body, not a 404 — so there is no status-code
-        signal to gate on; the caller has to look at the bytes themselves
-        (e.g. ``homeassistant.components.image.infer_image_type``) to tell a
-        real screenshot from the error body.
+        ``mode=1`` is the passive screen-mirror the phone/web apps use for live viewing — read-only
+        by construction, unlike ``getScreenShot`` (the transport this replaces): opening a session
+        and reading frames off the socket it hands back never wakes the panel or shows anything on
+        it (RESEARCH.md's 2026-08-30 entry). The reply carries the TCP port to connect to next
+        (reallocated per session, never fixed) plus the stream's own ``videoWidth``/``videoHeight``
+        — see :class:`.cast_session.CastHandshake`, which parses this payload.
         """
-        return await self._api_wrapper(
-            method="get",
-            url=self._url("/ZidooControlCenter/getScreenShot"),
-            parse_json=False,
-        )
+        return await self._read("/ZidooControlCenter/setcastmode?mode=1&version=1")
+
+    async def async_stop_cast_session(self, port: int) -> None:
+        """Tear down a cast-mode session opened with :meth:`async_start_cast_session`.
+
+        Best-effort from the caller's point of view: the device frees the port on socket close
+        regardless (verified live, RESEARCH.md), so a caller that cannot reach this — the device
+        already went away — has not leaked anything on the device side either.
+        """
+        await self._command(f"/ZidooControlCenter/setcastmode?mode=0&port={port}")
 
     # ------------------------------------------------------------------
     # Transport.

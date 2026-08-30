@@ -84,10 +84,12 @@
                 "name": "Reboot"
             }
         },
+        "camera": {
+            "panel_camera": {
+                "name": "Panel view"
+            }
+        },
         "image": {
-            "panel_screenshot": {
-                "name": "Panel screenshot"
-            },
             "spectrum_style_current_preview": {
                 "name": "Selected spectrum preview"
             },

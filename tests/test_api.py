@@ -303,3 +303,41 @@ async def test_seam_getcdlist_empty_tray_yields_empty_list(
     discs = await _client(hass).async_get_cd_list()
 
     assert discs == []
+
+
+async def test_start_cast_session_returns_the_handshake_payload(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The handshake GET decodes straight to a dict — :mod:`.cast_session` parses it further."""
+    handshake = {
+        "status": 200,
+        "port": 7007,
+        "deviceWidth": 1600,
+        "deviceHeight": 600,
+        "videoWidth": 960,
+        "videoHeight": 360,
+        "isRotated": False,
+        "ip": "192.168.0.63",
+        "isShowMenu": True,
+    }
+    aioclient_mock.get(f"{BASE_URL}/ZidooControlCenter/setcastmode", json=handshake)
+
+    payload = await _client(hass).async_start_cast_session()
+
+    _, url, *_ = aioclient_mock.mock_calls[-1]
+    assert dict(url.query) == {"mode": "1", "version": "1"}
+    assert payload == handshake
+
+
+async def test_stop_cast_session_carries_the_allocated_port(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Teardown sends back the exact port the handshake allocated, not a fixed one."""
+    path = "/ZidooControlCenter/setcastmode"
+    aioclient_mock.get(f"{BASE_URL}{path}", text='{"status":200}')
+
+    await _client(hass).async_stop_cast_session(7007)
+
+    _, url, *_ = aioclient_mock.mock_calls[-1]
+    assert url.path == path
+    assert dict(url.query) == {"mode": "0", "port": "7007"}

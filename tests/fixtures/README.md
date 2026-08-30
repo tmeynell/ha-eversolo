@@ -2,7 +2,9 @@
 
 Every JSON file here is a real payload captured from Tim's DMP-A8 Gen 2 Master Edition,
 straight off the legacy port-9529 Zidoo-lineage API. These drive the mocked-HTTP test
-seam (`aioclient_mock`); tests must never hit a live device.
+seam (`aioclient_mock`); tests must never hit a live device. One non-JSON fixture,
+`capture.h264`, is documented separately at the bottom — it drives the cast-mode
+decoder instead, and never touches the HTTP seam at all.
 
 Captured 2026-08-13 against `192.168.0.60:9529`, firmware `v1.1.50`, unless the table
 says otherwise — two `getState` fixtures were captured 2026-08-17 against the device's
@@ -143,3 +145,15 @@ than transcribing it. This fixture reproduces the real `info` block verbatim and
 `musics: []`, since the code under test only ever reads `info.url`. Replace with a real,
 untruncated capture if one is taken. `getcdlist_empty.json` (`[]`) is the empty-tray shape
 and needs no such caveat — an empty list is an empty list.
+
+## `capture.h264`
+
+**Real, unmodified.** Not a JSON fixture and not part of the HTTP seam: a raw Annex-B H.264
+byte stream, captured 2026-08-23 against `192.168.0.63`/`v1.1.80` by the `prototype/screen-mirror-spike`
+branch's throwaway spike (`prototypes/screen-mirror/out/capture.h264`, commit `d504dae`) reading
+the cast-mode socket for 8 seconds. This is the screensaver clock, at the stream's real 960x360 —
+`test_camera.py` feeds it straight to `camera._FrameCollector` to prove the decode step produces a
+real JPEG without a live device. It carries no packet framing of its own (the spike's
+`collect_packets` already stripped the 4-byte length prefix and 10-byte type/flag/pts header
+before writing it) — `test_cast_session.py`'s framing tests build synthetic packets by hand
+instead, since this file has nothing left to parse.

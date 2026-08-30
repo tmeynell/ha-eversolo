@@ -58,10 +58,15 @@ hardware that (per `getState`) reports none. See ADR-0001.
 
 The Eversolo control app talks to several ports on the unit; only one is currently in scope.
 
-- **9529** — the main API this integration uses. Plain, unauthenticated HTTP JSON.
-- **9599** — screen-mirror and touch-injection. Not used by this integration; a live probe risks
-  sending real touch input to the device, so it hasn't been enumerated beyond identifying what
-  it's for.
+- **9529** — the main API this integration uses. Plain, unauthenticated HTTP JSON. The screen-mirror
+  cast-mode session (`cast_session.py`, #38) also lives here: a `setcastmode` handshake on this
+  port hands back a *separate*, per-session TCP port for the actual video socket — there is no
+  fixed video port to enumerate. An earlier version of this note placed screen-mirror on 9599;
+  that was based on the app's port-9599 WebSocket path, which turned out unnecessary once the
+  9529 mechanism was found and proven (RESEARCH.md, "Screen-mirror decode pipeline").
+- **9599** — a WebSocket path the vendor app can also use for screen-mirror/touch-injection, not
+  the one this integration speaks. Not used; a live probe risks sending real touch input to the
+  device, so it hasn't been enumerated beyond identifying what it's for.
 - **9587**, **18888** — file-manager and app-installer surfaces. Out of scope; not investigated.
 
 ## Setup admission (`SUPPORTED_MODEL_PREFIX`) ⭐

@@ -3,12 +3,14 @@
 # `ruff format` is adopted (build #12, 2026-08-17): CI runs `ruff format --check` alongside
 # `ruff check`, and `scripts/lint` applies both. This is the only formatter in play — no black.
 #
-# target-version stays py312, matching hacs.json's HA floor (2024.11.0), NOT the devcontainer's
-# Python 3.14 image. Bumping this to py314 once let ruff format rewrite `except (A, B):` into
-# unparenthesized PEP 758 syntax (valid only from Python 3.14) — a hard SyntaxError on the
-# Python versions HA 2024.11.0-era installs actually ship. requirements.txt pins a newer
-# homeassistant purely for test fixtures; it says nothing about the floor this code must parse
-# under. Do not raise this without raising hacs.json's floor and test_packaging.py in lockstep.
+# target-version stays py312, matching hacs.json's HA floor, NOT the devcontainer's Python 3.14
+# image. Bumping this to py314 once let ruff format rewrite `except (A, B):` into unparenthesized
+# PEP 758 syntax (valid only from Python 3.14) — a hard SyntaxError on the Python versions HA
+# 2024.11.0-era installs actually ship. requirements.txt pins a newer homeassistant purely for test
+# fixtures; it says nothing about the floor this code must parse under. Do not raise this without
+# raising hacs.json's floor and test_packaging.py in lockstep — and note #38 raised that floor to
+# 2026.4.0, whose own metadata requires Python >=3.14.2, so py314 would now be safe here too; left
+# unbumped only because nothing in this ticket depends on it and it would reformat unrelated code.
 
 target-version = "py312"
 

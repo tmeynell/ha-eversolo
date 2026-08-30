@@ -15,3 +15,14 @@ wakeonlan==4.0.0
 # real deployment, but the test environment needs its own copy since
 # config_flow.py now imports homeassistant.components.ssdp directly (#27).
 async-upnp-client==0.47.1
+
+# Matches manifest.json's requirements pin — HA installs this itself in a real
+# deployment, but the test environment needs its own copy since camera.py
+# imports av directly to decode the cast-mode socket's H.264 (#38).
+av==16.0.1
+
+# Not in manifest.json — homeassistant.components.camera.img_util imports this
+# unconditionally at module level (no try/except), so it has to be installed
+# for tests to even collect test_camera.py, the same way async-upnp-client
+# above stands in for what a real deployment's own camera platform installs.
+PyTurboJPEG==1.8.0
