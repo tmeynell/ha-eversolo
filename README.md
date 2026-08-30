@@ -62,6 +62,7 @@ unofficial, unsupported way to bypass that check.
 | Switch        | Gapless playback     | Plays consecutive tracks without a gap                                        |
 | Switch        | Screen               | Blanks or wakes the front display (see below)                                |
 | Switch        | Subwoofer output     | Enables the subwoofer channel (only on units with a subwoofer output)         |
+| Switch        | Suppress screensaver during playback | Keeps the device's screensaver from firing while something plays (see below) |
 
 The media player takes the device's own name and carries no entity name of its
 own, which is how Home Assistant names the one entity that _is_ the device.
@@ -99,6 +100,14 @@ at the unit, the switch won't notice, and its next toggle will do the
 opposite of what you expect. (The device does report its real screen state
 elsewhere; the switch doesn't read it yet. Screen brightness and
 Visualization aren't affected by this — the device reports those directly.)
+
+**Suppress screensaver during playback re-touches the device's own timeout,
+rather than disabling it.** The device's screensaver runs on a pure
+idle-since-last-write clock that ignores playback, and there is no setting
+that turns it off during playback — so while this switch is on and something
+is playing, the integration periodically re-writes the device's own current
+screensaver timeout, which resets that clock without changing anything you
+configured. Off by default; nothing is touched unless you turn it on.
 
 **A couple of images are loaded straight from the device, unencrypted.** The
 Input sensor's icon, and occasionally the media player's now-playing picture

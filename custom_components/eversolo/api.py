@@ -167,6 +167,23 @@ class EversoloApiClient:
         """Return the raw input/output payload; both halves are typed in ``data``."""
         return await self._read("/ZidooMusicControl/v2/getInputAndOutputList")
 
+    async def async_get_screensaver_time_list(self) -> dict:
+        """Return the screensaver timeout list, including the current index."""
+        return await self._read(
+            "/SystemSettings/displaySettings/getScreensaverTimeList"
+        )
+
+    async def async_set_screensaver_time(self, index: int) -> None:
+        """Set the screensaver timeout to the list index given.
+
+        Re-issuing the device's own *current* index is a safe keep-alive: it
+        resets the idle-since-last-write clock without changing anything the
+        user configured (RESEARCH.md, "Ticket 09").
+        """
+        await self._command(
+            f"/SystemSettings/displaySettings/setScreensaverTime?index={index}"
+        )
+
     async def async_get_vu_mode_state(self) -> dict:
         """Return VU mode state."""
         return await self._read("/SystemSettings/displaySettings/getVUModeList")

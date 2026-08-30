@@ -40,6 +40,7 @@ from custom_components.eversolo.const import (
     SETTING_TAG_KNOB_COLOR,
     SETTING_TAG_MASTER_CLOCK,
     SETTING_TAG_SCREEN_BRIGHTNESS,
+    SETTING_TAG_SCREENSAVER,
     SETTING_TAG_SPECTRUM_MODE,
     SETTING_TAG_SUBWOOFER,
     SETTING_TAG_VU_MODE,
@@ -317,6 +318,13 @@ GATES: tuple[Gate, ...] = (
         entities=(("switch", "_screen"),),
         absent={GET_POWER_OPTION: {"json": _power_option_without(POWER_TAG_SCREEN)}},
     ),
+    Gate(
+        capability="has_screensaver",
+        entities=(("switch", "_suppress_screensaver"),),
+        absent={
+            GET_SYSTEM_SETTINGS: {"json": settings_without(SETTING_TAG_SCREENSAVER)}
+        },
+    ),
 )
 
 # The entities no capability gates. At least one must survive every mutation
@@ -355,6 +363,7 @@ A8_ENTITY_SET = {
     ("switch", "_eos_engine"),
     ("switch", "_auto_change_source_internal_player"),
     ("switch", "_screen"),
+    ("switch", "_suppress_screensaver"),
 }
 
 # Hardware the A8 does not have, or a feature it reports off: gated away, and

@@ -14,6 +14,11 @@ SemVer contract in `CONTRIBUTING.md`.
   discovery) falls back to today's bare host-entry form (#27).
 - Camera platform: a "Panel view" snapshot entity, opening the device's screen-mirror socket for
   one frame per fetch instead of polling a still-image endpoint (#38).
+- A "Suppress screensaver during playback" switch. The device's screensaver runs on a pure
+  idle-since-last-write clock, blind to playback, with no app-level flag to turn it off during
+  playback — so while the switch is on and something is playing, the integration periodically
+  re-writes the device's own current screensaver timeout, which resets that clock without
+  changing anything you configured. Off by default (#41).
 
 ### Removed
 

@@ -20,15 +20,18 @@ from pytest_homeassistant_custom_component.common import mock_restore_cache
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.eversolo.const import (
+    SCREENSAVER_KEEPALIVE_CYCLES,
     SETTINGS_REFRESH_CYCLES,
     SETTING_TAG_AUTO_CHANGE_SOURCE,
     SETTING_TAG_CD_AUTO_PLAY,
     SETTING_TAG_GAPLESS,
+    SETTING_TAG_SCREENSAVER,
     SETTING_TAG_SUBWOOFER,
 )
 
 from .helpers import (
     GET_POWER_OPTION,
+    GET_SCREENSAVER_TIME_LIST,
     GET_STATE,
     GET_SUB_OUTPUT,
     GET_SYSTEM_SETTINGS,
@@ -37,6 +40,7 @@ from .helpers import (
     SET_EOS_ENGINE,
     SET_GAPLESS,
     SET_POWER_OPTION,
+    SET_SCREENSAVER_TIME,
     SET_SUBWOOFER,
     advance_cycles,
     answers_with,
@@ -484,7 +488,7 @@ async def test_a_unit_whose_power_menu_has_no_screen_never_gets_the_switch(
     assert not [
         entity_id
         for entity_id in hass.states.async_entity_ids(SWITCH_DOMAIN)
-        if "screen" in entity_id
+        if entity_id.endswith("_screen")
     ]
 
 
@@ -519,3 +523,167 @@ async def test_the_screen_switch_picks_its_last_request_back_up(
 
     assert calls_to(aioclient_mock, SET_POWER_OPTION) == 0
     assert hass.states.get(entity_id).state == STATE_OFF
+
+
+async def _suppress_screensaver(
+    hass: HomeAssistant, aioclient_mock, overrides=None
+) -> str:
+    """Set the integration up and return the switch's entity_id."""
+    prime_device(aioclient_mock, overrides)
+    await setup_integration(hass)
+    return entity_id_for(hass, "_suppress_screensaver")
+
+
+async def test_suppress_screensaver_starts_off(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """It is a request the integration makes, not a device reading — off by default."""
+    entity_id = await _suppress_screensaver(hass, aioclient_mock)
+
+    assert hass.states.get(entity_id).state == STATE_OFF
+    assert "assumed_state" not in hass.states.get(entity_id).attributes
+
+
+async def test_turning_it_on_does_not_touch_the_device_by_itself(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Flipping the switch only arms the keep-alive; it fires on later cycles."""
+    entity_id = await _suppress_screensaver(hass, aioclient_mock)
+
+    await hass.services.async_call(
+        SWITCH_DOMAIN, SERVICE_TURN_ON, {ATTR_ENTITY_ID: entity_id}, blocking=True
+    )
+
+    assert hass.states.get(entity_id).state == STATE_ON
+    assert calls_to(aioclient_mock, GET_SCREENSAVER_TIME_LIST) == 0
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
+
+
+async def test_the_keepalive_fires_once_the_interval_elapses_while_playing(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """Suppression on, and the device playing, resets the idle clock on schedule."""
+    entity_id = await _suppress_screensaver(
+        hass,
+        aioclient_mock,
+        {
+            GET_SCREENSAVER_TIME_LIST: {
+                "json": fixture_json("getscreensavertimelist.json")
+            },
+            SET_SCREENSAVER_TIME: {"text": '{"status":200}'},
+        },
+    )
+    await hass.services.async_call(
+        SWITCH_DOMAIN, SERVICE_TURN_ON, {ATTR_ENTITY_ID: entity_id}, blocking=True
+    )
+
+    await advance_cycles(hass, freezer, SCREENSAVER_KEEPALIVE_CYCLES - 1)
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
+
+    await advance_cycles(hass, freezer, 1)
+
+    assert calls_to(aioclient_mock, GET_SCREENSAVER_TIME_LIST) == 1
+    # The captured list's own current index (unchanged) — a same-value write.
+    assert query_of(aioclient_mock, SET_SCREENSAVER_TIME) == {"index": "5"}
+
+
+async def test_the_keepalive_does_not_fire_while_switched_off(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """The default state: nothing is touched unless the switch says so."""
+    await _suppress_screensaver(
+        hass,
+        aioclient_mock,
+        {
+            GET_SCREENSAVER_TIME_LIST: {
+                "json": fixture_json("getscreensavertimelist.json")
+            }
+        },
+    )
+
+    await advance_cycles(hass, freezer, SCREENSAVER_KEEPALIVE_CYCLES)
+
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
+
+
+async def test_the_keepalive_does_not_fire_while_nothing_is_playing(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """On, but idle: the device's own configured timeout is left to apply."""
+    stopped = fixture_json("getstate_spotify_disc_loaded.json")
+    stopped["everSoloPlayInfo"]["playStatus"] = 0
+    entity_id = await _suppress_screensaver(
+        hass,
+        aioclient_mock,
+        {
+            GET_STATE: {"json": stopped},
+            GET_SCREENSAVER_TIME_LIST: {
+                "json": fixture_json("getscreensavertimelist.json")
+            },
+        },
+    )
+    await hass.services.async_call(
+        SWITCH_DOMAIN, SERVICE_TURN_ON, {ATTR_ENTITY_ID: entity_id}, blocking=True
+    )
+
+    await advance_cycles(hass, freezer, SCREENSAVER_KEEPALIVE_CYCLES)
+
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
+
+
+async def test_suppress_screensaver_picks_its_last_request_back_up(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """A restart must not silently drop back to "not suppressing"."""
+    mock_restore_cache(
+        hass,
+        [
+            State(
+                "switch.eversolo_dmp_a8_gen_2_suppress_screensaver_during_playback",
+                STATE_ON,
+            )
+        ],
+    )
+    entity_id = await _suppress_screensaver(
+        hass,
+        aioclient_mock,
+        {
+            GET_SCREENSAVER_TIME_LIST: {
+                "json": fixture_json("getscreensavertimelist.json")
+            },
+            SET_SCREENSAVER_TIME: {"text": '{"status":200}'},
+        },
+    )
+
+    assert hass.states.get(entity_id).state == STATE_ON
+
+    await advance_cycles(hass, freezer, SCREENSAVER_KEEPALIVE_CYCLES)
+
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 1
+
+
+async def test_suppress_screensaver_is_a_config_entity(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """It configures integration behaviour rather than reporting on the device."""
+    entity_id = await _suppress_screensaver(hass, aioclient_mock)
+
+    entry = er.async_get(hass).async_get(entity_id)
+    assert entry.entity_category is EntityCategory.CONFIG
+
+
+async def test_a_unit_without_a_screensaver_setting_never_gets_the_switch(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """No tag in the tree, no switch — same detection style as every other gate."""
+    prime_device(
+        aioclient_mock,
+        {GET_SYSTEM_SETTINGS: {"json": settings_without(SETTING_TAG_SCREENSAVER)}},
+    )
+    await setup_integration(hass)
+
+    assert not [
+        entity_id
+        for entity_id in hass.states.async_entity_ids(SWITCH_DOMAIN)
+        if "suppress_screensaver" in entity_id
+    ]

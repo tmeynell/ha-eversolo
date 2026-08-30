@@ -54,6 +54,7 @@ from .const import (
     LOGGER,
     PLAY_TYPE_BLUETOOTH,
     PROCESSING_GATE_CYCLES,
+    SCREENSAVER_KEEPALIVE_CYCLES,
     SETTINGS_REFRESH_CYCLES,
 )
 from .data import (
@@ -168,6 +169,9 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         self._settings: dict[str, Any] = {}
         # Starts at the threshold so the first cycle reads the settings tier.
         self._cycles_since_settings = SETTINGS_REFRESH_CYCLES
+        # User preference, not a device reading — see the screensaver switch.
+        self._suppress_screensaver = False
+        self._cycles_since_screensaver_keepalive = 0
         super().__init__(
             hass=hass,
             logger=LOGGER,
@@ -206,6 +210,17 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         """
         return self._gates_settled
 
+    @property
+    def screensaver_suppression_enabled(self) -> bool:
+        """Whether the screensaver-suppression switch is on."""
+        return self._suppress_screensaver
+
+    @callback
+    def set_screensaver_suppression(self, enabled: bool) -> None:
+        """Record the switch's request; the next live cycle acts on it."""
+        self._suppress_screensaver = enabled
+        self._cycles_since_screensaver_keepalive = 0
+
     async def async_wake(self) -> None:
         """Send the magic packet that is this unit's only power-on mechanism.
 
@@ -240,6 +255,7 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
             self._track_device_name(data.device.name)
         self._settle_capability_gates(data.processing)
         self._maybe_lookup_bluetooth_cover(data.playback)
+        await self._async_maybe_keep_screensaver_awake(data.playback)
 
         self._cycles_since_settings += 1
         if self._cycles_since_settings >= SETTINGS_REFRESH_CYCLES:
@@ -375,6 +391,45 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
             self._async_resolve_bluetooth_cover(track),
             name=f"{DOMAIN} musicbrainz cover lookup",
         )
+
+    async def _async_maybe_keep_screensaver_awake(
+        self, playback: EversoloPlayback
+    ) -> None:
+        """Reset the device's screensaver idle clock while suppression is on.
+
+        The device's screensaver runs on a pure idle-since-last-*write* clock,
+        blind to playback (RESEARCH.md, "Ticket 09"), and there is no
+        app-level "don't screensave during playback" flag to flip — the whole
+        family is confirmed device-tree passthrough, not app code. But
+        re-issuing ``setScreensaverTime`` with its own *current* index resets
+        that clock without changing the configured timeout, so this leans on
+        that as a keep-alive: while the switch is on and something is
+        playing, re-touch it every :data:`SCREENSAVER_KEEPALIVE_CYCLES` live
+        cycles — comfortably inside the shortest selectable timeout (5 min).
+
+        The counter resets whenever suppression is off or nothing is playing,
+        so the first keep-alive after playback (re)starts always lands a full
+        interval later, never immediately.
+        """
+        if not self._suppress_screensaver or not playback.is_playing:
+            self._cycles_since_screensaver_keepalive = 0
+            return
+
+        self._cycles_since_screensaver_keepalive += 1
+        if self._cycles_since_screensaver_keepalive < SCREENSAVER_KEEPALIVE_CYCLES:
+            return
+        self._cycles_since_screensaver_keepalive = 0
+
+        try:
+            current = await self.client.async_get_screensaver_time_list()
+            index = current.get("currentIndex")
+            if index is None:
+                return
+            await self.client.async_set_screensaver_time(index)
+        except EversoloApiClientError as exception:
+            LOGGER.debug(
+                "Could not keep the screensaver at bay this cycle: %s", exception
+            )
 
     async def _async_resolve_bluetooth_cover(self, track: BluetoothTrack) -> None:
         """Look up one Bluetooth track's cover and publish it, if still current."""

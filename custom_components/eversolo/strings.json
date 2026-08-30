@@ -168,6 +168,9 @@
             },
             "subwoofer_output": {
                 "name": "Subwoofer output"
+            },
+            "suppress_screensaver_during_playback": {
+                "name": "Suppress screensaver during playback"
             }
         }
     }
