@@ -1,6 +1,8 @@
-# Test harness for the mocked-HTTP seam. Pinned to the phcc release that bundles
-# homeassistant==2026.4.0 (matches requirements.txt), giving aioclient_mock,
-# the hass fixture, and enable_custom_integrations.
+# Test harness for the mocked-HTTP seam. Pinned to the phcc release that actually requires
+# homeassistant==2026.8.2 (its own METADATA's Requires-Dist, not just a nearby version) — giving
+# aioclient_mock, the hass fixture, and enable_custom_integrations. requirements.txt is pinned to
+# match; earlier comments here claimed both matched 2026.4.0, which was never true for this phcc
+# release and only surfaced when the dev venv actually installed exactly what was pinned.
 pytest-homeassistant-custom-component==0.13.356
 
 # Matches manifest.json's requirements pin — HA installs this itself in a real
@@ -8,8 +10,8 @@ pytest-homeassistant-custom-component==0.13.356
 # imports wake_on_lan.py transitively.
 wakeonlan==4.0.0
 
-# Matches the bundled homeassistant==2026.4.0's own pin for the ssdp
+# Matches the bundled homeassistant==2026.8.2's own pin for the ssdp
 # integration (components/ssdp/manifest.json) — HA installs this itself in a
 # real deployment, but the test environment needs its own copy since
 # config_flow.py now imports homeassistant.components.ssdp directly (#27).
-async-upnp-client==0.46.2
+async-upnp-client==0.47.1
