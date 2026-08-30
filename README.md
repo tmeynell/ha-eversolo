@@ -40,7 +40,7 @@ unofficial, unsupported way to bypass that check.
 | Button        | Power off            | Turns off device (only on units that report they accept it)                  |
 | Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it) |
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
-| Camera        | Panel view           | Snapshot of the front panel (960×360), refreshed on request, without waking the display |
+| Camera        | Panel view           | The front panel's screen, mirrored (960×360) without waking the display — a snapshot on request, or live at the device's own ~40 fps while a dashboard card is actually watching it |
 | Image         | {option} preview     | One per VU/spectrum style option, e.g. "VU meter 3 preview" (only on units with that style list) |
 | Image         | Selected spectrum preview | The currently selected spectrum style's picture, updating as the selection changes (only on units with that style list) |
 | Image         | Selected VU preview  | The currently selected VU style's picture, updating as the selection changes (only on units with that style list) |
@@ -108,6 +108,14 @@ that turns it off during playback — so while this switch is on and something
 is playing, the integration periodically re-writes the device's own current
 screensaver timeout, which resets that clock without changing anything you
 configured. Off by default; nothing is touched unless you turn it on.
+
+That re-write is also, incidentally, the only way this integration ever
+touches the screen itself: if the device is already sitting on its
+screensaver (or the screen is off) when a keep-alive cycle fires, the write
+dismisses it back to the now-playing screen — confirmed live against a real
+unit. It's a side effect of resetting the idle clock, not a deliberate "wake
+the screen" feature, and it only happens while this switch is on and
+something is playing.
 
 **A couple of images are loaded straight from the device, unencrypted.** The
 Input sensor's icon, and occasionally the media player's now-playing picture
@@ -188,13 +196,14 @@ Choosing or editing a DSP profile, editing PEQ bands, and running DRC room
 correction are not in this release.
 
 **CD support is playback only.** Transport, disc metadata, selecting the CD
-source, and CD auto play work. Tray/eject, ripping and disc details need the
-device's screen-mirroring channel and are not supported. The metadata the API
-gives for a disc is title, artist, duration and position — no album, and no
-track list.
+source, and CD auto play work. Tray/eject, ripping and disc details need
+touch injection over the device's screen-mirroring channel, which is not
+supported (see below). The metadata the API gives for a disc is title,
+artist, duration and position — no album, and no track list.
 
-**Screen mirroring, touch injection, the file manager and the APK installer**
-are not supported.
+**Touch injection, the file manager and the APK installer** are not
+supported. (Screen mirroring itself is — see the Panel view camera above —
+but it's view-only: nothing here can tap or type on the device's screen.)
 
 **Settings not exposed.** Full subwoofer bass management (level, crossover,
 delay, bypass); the extra analog-output parameters (volume step, polarity,
