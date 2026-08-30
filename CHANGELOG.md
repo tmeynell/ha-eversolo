@@ -50,6 +50,9 @@ SemVer contract in `CONTRIBUTING.md`.
   "No disc is loaded" error instead of an unhandled exception (#59).
 - The current-selection VU/spectrum preview images now update their served picture when the
   selection changes, instead of staying stuck on whichever picture was fetched first (#58).
+- The `av` dependency no longer hard-pins an exact version, which could conflict with the exact
+  `av` pin Home Assistant Core bundles as one of its own base dependencies and leave the
+  `eversolo` config entry stuck `not_loaded` (#80).
 
 ## [1.2.0] - 2026-08-25
 
