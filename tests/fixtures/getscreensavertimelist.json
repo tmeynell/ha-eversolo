@@ -1,0 +1,39 @@
+{
+  "status": 200,
+  "currentIndex": 5,
+  "option": 3,
+  "isShowTitle": true,
+  "url": "/SystemSettings/displaySettings/setScreensaverTime?index=",
+  "data": [
+    {
+      "index": 0,
+      "title": "5 minutes",
+      "itemDescription": ""
+    },
+    {
+      "index": 1,
+      "title": "10 minutes",
+      "itemDescription": ""
+    },
+    {
+      "index": 2,
+      "title": "30 minutes",
+      "itemDescription": ""
+    },
+    {
+      "index": 3,
+      "title": "1 hour",
+      "itemDescription": ""
+    },
+    {
+      "index": 4,
+      "title": "2 hours",
+      "itemDescription": ""
+    },
+    {
+      "index": 5,
+      "title": "3 hours",
+      "itemDescription": ""
+    }
+  ]
+}

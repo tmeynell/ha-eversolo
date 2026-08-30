@@ -32,6 +32,13 @@ SETTINGS_REFRESH_CYCLES = 6
 # Worth knowing before anyone retunes this against a wall-clock target.
 PROCESSING_GATE_CYCLES = 6
 
+# How often the screensaver-suppression switch re-touches the device's idle
+# clock while something plays. A same-value ``setScreensaverTime`` write resets
+# that clock without changing the configured timeout (RESEARCH.md, "Ticket
+# 09"), so this only has to land comfortably inside the shortest selectable
+# timeout (5 minutes) — 18 live cycles at 5 s apiece is 90 s.
+SCREENSAVER_KEEPALIVE_CYCLES = 18
+
 # The CD is not a hardware input: a disc plays through the internal player, so
 # the "CD" source is synthetic and selecting it just switches the input there.
 CD_SOURCE = "CD"
@@ -85,6 +92,7 @@ SETTING_TAG_AUTO_CHANGE_SOURCE = "SettingsItemTagAutoChangeSource"
 SETTING_TAG_SCREEN_BRIGHTNESS = "SettingsItemTagScreenBrightness"
 SETTING_TAG_VU_MODE = "SettingsItemTagVUMode"
 SETTING_TAG_SPECTRUM_MODE = "SettingsItemTagSpPlayMode"
+SETTING_TAG_SCREENSAVER = "SettingsItemTagScreensaver"
 # The subwoofer's own on/off lives one level down, inside the sub-page
 # ``SETTING_TAG_SUBWOOFER`` points at, not in the main tree.
 SETTING_TAG_SUBWOOFER_SWITCH = "SettingsItemTagSubSwitchEnable"

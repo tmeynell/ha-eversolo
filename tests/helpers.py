@@ -52,6 +52,10 @@ GET_MASTER_CLOCK = "/SystemSettings/audioSettings/getMasterClockList"
 GET_SUB_OUTPUT = "/SystemSettings/audioSettings/getSubOutputOption"
 GET_POWER_OPTION = "/ZidooMusicControl/v2/getPowerOption"
 GET_KNOB_BRIGHTNESS = "/SystemSettings/displaySettings/getKnobBrightness"
+# Not polled — read on demand by the screensaver keep-alive (coordinator.py),
+# so it is deliberately absent from ``DEVICE_ENDPOINTS`` below; a test that
+# needs it registers it itself via ``prime_device``'s overrides.
+GET_SCREENSAVER_TIME_LIST = "/SystemSettings/displaySettings/getScreensaverTimeList"
 # Named rather than inlined below, because a test overriding it has to spell
 # the same path: ``prime_device`` registers an unrecognised override path as a
 # *new* endpoint rather than replacing one, so a near-miss would silently leave
@@ -129,6 +133,7 @@ SET_UPSAMPLING = "/SystemSettings/audioSettings/xlrOutputOption/setXlrOutputUpsa
 SET_SCREEN_BRIGHTNESS = "/SystemSettings/displaySettings/setScreenBrightness"
 SET_KNOB_BRIGHTNESS = "/SystemSettings/displaySettings/setKnobBrightness"
 SET_VU_MODE = "/SystemSettings/displaySettings/setVUMode"
+SET_SCREENSAVER_TIME = "/SystemSettings/displaySettings/setScreensaverTime"
 
 
 def fixture_text(name: str) -> str:

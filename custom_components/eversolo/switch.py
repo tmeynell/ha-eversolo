@@ -105,6 +105,8 @@ def _build(
     ]
     if capabilities.has_screen_power:
         switches.append(EversoloScreenSwitch(coordinator))
+    if capabilities.has_screensaver:
+        switches.append(EversoloScreensaverSuppressSwitch(coordinator))
     return switches
 
 
@@ -247,4 +249,50 @@ class EversoloScreenSwitch(EversoloEntity, SwitchEntity, RestoreEntity):
             return
         await self.coordinator.client.async_toggle_screen()
         self._expected = enabled
+        self.async_write_ha_state()
+
+
+class EversoloScreensaverSuppressSwitch(EversoloEntity, SwitchEntity, RestoreEntity):
+    """Keep the device awake while it plays, by request rather than by reading.
+
+    This is the odd one out on the platform in the opposite direction from
+    :class:`EversoloScreenSwitch`: not a device toggle at all, but an
+    integration-side behaviour with no device state to confirm against — see
+    ``EversoloDataUpdateCoordinator._async_maybe_keep_screensaver_awake`` for
+    the mechanism. Its state is therefore just the request itself, restored
+    across restarts the same way the screen switch's guess is, and reported
+    without ``assumed_state``: unlike a device toggle this integration can
+    never be wrong about it.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:monitor-eye"
+    _attr_translation_key = "suppress_screensaver_during_playback"
+
+    def __init__(self, coordinator: EversoloDataUpdateCoordinator) -> None:
+        """Initialize the switch."""
+        super().__init__(coordinator)
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_suppress_screensaver"
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Pick the last request back up; the coordinator starts off otherwise."""
+        await super().async_added_to_hass()
+        if (last := await self.async_get_last_state()) is not None:
+            self.coordinator.set_screensaver_suppression(last.state == STATE_ON)
+
+    @property
+    def is_on(self) -> bool:
+        """Whether suppression is currently requested."""
+        return self.coordinator.screensaver_suppression_enabled
+
+    async def async_turn_on(self, **_: object) -> None:
+        """Start suppressing the screensaver while playback is active."""
+        self.coordinator.set_screensaver_suppression(True)
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **_: object) -> None:
+        """Stop suppressing; the device's own configured timeout applies again."""
+        self.coordinator.set_screensaver_suppression(False)
         self.async_write_ha_state()

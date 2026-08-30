@@ -26,6 +26,7 @@ from .const import (
     SETTING_TAG_KNOB_COLOR,
     SETTING_TAG_MASTER_CLOCK,
     SETTING_TAG_SCREEN_BRIGHTNESS,
+    SETTING_TAG_SCREENSAVER,
     SETTING_TAG_SPECTRUM_MODE,
     SETTING_TAG_SUBWOOFER,
     SETTING_TAG_VU_MODE,
@@ -915,6 +916,7 @@ class EversoloCapabilities:
     has_screen_brightness: bool = False
     has_vu_style: bool = False
     has_spectrum_style: bool = False
+    has_screensaver: bool = False
 
     @property
     def has_visualization(self) -> bool:
@@ -984,6 +986,7 @@ class EversoloCapabilities:
             has_screen_brightness=SETTING_TAG_SCREEN_BRIGHTNESS in tags,
             has_vu_style=SETTING_TAG_VU_MODE in tags,
             has_spectrum_style=SETTING_TAG_SPECTRUM_MODE in tags,
+            has_screensaver=SETTING_TAG_SCREENSAVER in tags,
             # Routing is not in the settings tree at all — the analog panel the
             # tree does carry holds DAC filter, upsampling and volume limits,
             # and no routing control — so the socket list is its own gate.
