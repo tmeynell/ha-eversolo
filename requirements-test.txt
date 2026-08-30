@@ -7,3 +7,9 @@ pytest-homeassistant-custom-component==0.13.356
 # deployment, but the test environment needs its own copy since coordinator.py
 # imports wake_on_lan.py transitively.
 wakeonlan==4.0.0
+
+# Matches the bundled homeassistant==2026.4.0's own pin for the ssdp
+# integration (components/ssdp/manifest.json) — HA installs this itself in a
+# real deployment, but the test environment needs its own copy since
+# config_flow.py now imports homeassistant.components.ssdp directly (#27).
+async-upnp-client==0.46.2

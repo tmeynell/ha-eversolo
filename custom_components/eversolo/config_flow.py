@@ -10,11 +10,13 @@ as the unit moves between its wired, WiFi, and SFP interfaces.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from urllib.parse import urlparse
 
 import voluptuous as vol
 
+from homeassistant.components import ssdp
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -26,11 +28,16 @@ from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import format_mac
-from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
+from homeassistant.helpers.service_info.ssdp import (
+    ATTR_UPNP_MANUFACTURER,
+    SsdpServiceInfo,
+)
 
 from .api import EversoloApiClient, EversoloApiClientCommunicationError
 from .const import CONF_ENABLE_MUSICBRAINZ_LOOKUP, DEFAULT_PORT, DOMAIN, LOGGER
 from .data import EversoloDevice
+
+CONF_DEVICE = "device"
 
 STEP_DATA_SCHEMA = vol.Schema({vol.Required(CONF_HOST): cv.string})
 
@@ -43,12 +50,38 @@ OPTIONS_SCHEMA = vol.Schema(
 # of a separate visit through Settings → Options afterward.
 STEP_USER_DATA_SCHEMA = STEP_DATA_SCHEMA.extend(OPTIONS_SCHEMA.schema)
 
+# Same manufacturer/deviceType pair the manifest's passive matcher requires
+# (#24) — the discovery-cache lookup this module runs itself reuses it so a
+# picked device passes through the identical admission rule as one found
+# passively.
+SSDP_MANUFACTURER = "EVERSOLO"
+SSDP_DEVICE_TYPE = "urn:schemas-upnp-org:device:MediaRenderer:1"
+
 # Eversolo's DMP-A line — the DMP-A8 (Gen 1/2) this integration targets, plus the
 # other A-series models the capability gates still serve with a reduced entity
 # set. A box that doesn't call itself a DMP-A is rejected outright: anything else
 # answering on 9529 is some other Zidoo-lineage device that would only produce a
 # broken entry.
 SUPPORTED_MODEL_PREFIX = "DMP-A"
+
+
+def _user_schema(candidates: dict[str, str]) -> vol.Schema:
+    """Build the manual-add schema, adding a picker when a search found hits.
+
+    With no candidates this is exactly ``STEP_USER_DATA_SCHEMA`` — the host
+    field stays required, unchanged from before the picker existed. With
+    candidates, the host field becomes optional because picking a device
+    supplies it instead; ``async_step_user`` requires one or the other be
+    given.
+    """
+    if not candidates:
+        return STEP_USER_DATA_SCHEMA
+    return vol.Schema(
+        {
+            vol.Optional(CONF_DEVICE): vol.In(candidates),
+            vol.Optional(CONF_HOST): cv.string,
+        }
+    ).extend(OPTIONS_SCHEMA.schema)
 
 
 def _is_supported(device: EversoloDevice) -> bool:
@@ -70,6 +103,11 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
 
     _discovered_host: str
     _discovered_name: str | None
+    # Populated once per flow instance by the discovery-cache lookup in
+    # ``async_step_user``, host -> label ("DMP-A8 Gen 2 (192.168.0.63)"). Kept
+    # across re-renders of the same form (a validation error, say) so it
+    # isn't looked up again just to redraw the picker.
+    _discovered_candidates: dict[str, str]
 
     @staticmethod
     @callback
@@ -83,17 +121,33 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
         self,
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
-        """Add a device by address alone."""
+        """Add a device by address, or by picking one already-discovered.
+
+        Looked up once, on the form's first render (``_async_discover_candidates``):
+        a device found and confirmed there is offered as a pick alongside the
+        host field, so selecting it skips typing an IP; a network with none
+        (or one HA's SSDP cache hasn't caught up to yet) falls straight back
+        to a bare host field — no regression to that path. A second render of
+        this same form (a validation error, say) reuses that first lookup's
+        results rather than repeating it.
+        """
         errors: dict[str, str] = {}
 
-        if user_input is not None:
-            device, errors = await self._async_probe(user_input[CONF_HOST])
+        if user_input is None:
+            self._discovered_candidates = await self._async_discover_candidates()
+        else:
+            host = user_input.get(CONF_DEVICE) or user_input.get(CONF_HOST)
+            device, errors = (
+                await self._async_probe(host)
+                if host
+                else (None, {"base": "host_required"})
+            )
             if device is not None:
                 await self.async_set_unique_id(format_mac(device.net_mac))
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=device.display_title,
-                    data={CONF_HOST: user_input[CONF_HOST]},
+                    data={CONF_HOST: host},
                     options={
                         CONF_ENABLE_MUSICBRAINZ_LOOKUP: user_input[
                             CONF_ENABLE_MUSICBRAINZ_LOOKUP
@@ -101,7 +155,9 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
                     },
                 )
 
-        return self._show_host_form("user", STEP_USER_DATA_SCHEMA, user_input, errors)
+        return self._show_host_form(
+            "user", _user_schema(self._discovered_candidates), user_input, errors
+        )
 
     async def async_step_reconfigure(
         self,
@@ -220,6 +276,79 @@ class EversoloFlowHandler(ConfigFlow, domain=DOMAIN):
             data_schema=self.add_suggested_values_to_schema(schema, suggested or {}),
             errors=errors,
         )
+
+    async def _async_discover_candidates(self) -> dict[str, str]:
+        """Look up Eversolo devices to offer as picks.
+
+        Reads Home Assistant's own SSDP discovery cache — kept warm by both
+        passive listening and the ``ssdp`` integration's own periodic active
+        scans — rather than sending a fresh broadcast of this module's own,
+        so a device that appeared moments before the form was opened may not
+        show up yet; that is the same "none found" outcome as a quiet network,
+        and both fall back to the bare host field.
+
+        Filters the hits to the same manufacturer/deviceType pair the passive
+        flow's manifest matcher requires, then confirms each with the same
+        ``getModel`` admission check (``_async_probe``, which applies
+        ``_is_supported``) the passive flow applies — a hit that only
+        emulates the platform's UPnP MediaRenderer is filtered out here
+        exactly as it would be there. Returns host -> label, e.g.
+        ``{"192.168.0.63": "DMP-A8 Gen 2 (192.168.0.63)"}``.
+
+        A ``hass`` with the ``ssdp`` integration not set up (never the case
+        once any loaded integration's manifest declares an ``ssdp`` matcher,
+        as this one's does, but true of a bare test ``hass``) has nothing to
+        read — that is likewise treated as an empty result rather than an
+        error.
+
+        Candidates are probed concurrently, and a candidate whose probe fails
+        for any reason — including a bug in that one device's response, which
+        ``_async_probe`` deliberately does not catch (api.py) — is dropped
+        rather than allowed to blow up the whole "Add Integration" flow for
+        every device on the network.
+        """
+        if ssdp.DOMAIN not in self.hass.data:
+            return {}
+
+        discovered = await ssdp.async_get_discovery_info_by_st(
+            self.hass, SSDP_DEVICE_TYPE
+        )
+
+        hosts: list[str] = []
+        for info in discovered:
+            if info.upnp.get(ATTR_UPNP_MANUFACTURER) != SSDP_MANUFACTURER:
+                continue
+            host = urlparse(info.ssdp_location).hostname if info.ssdp_location else None
+            if host and host not in hosts:
+                hosts.append(host)
+
+        devices = await asyncio.gather(
+            *(self._async_probe_candidate(host) for host in hosts)
+        )
+        return {
+            host: f"{device.name} ({host})"
+            for host, device in zip(hosts, devices, strict=True)
+            if device is not None
+        }
+
+    async def _async_probe_candidate(self, host: str) -> EversoloDevice | None:
+        """Probe one discovered host, swallowing any failure as "not a pick".
+
+        Unlike the host a user types themselves, a candidate here was never
+        asked for — it only showed up because something on the LAN answered
+        SSDP's manufacturer/deviceType pair. A bug in that one device's
+        response (the case ``_async_probe`` deliberately lets propagate,
+        api.py) should drop it from the picker, not break the form for every
+        other device found alongside it.
+        """
+        try:
+            device, _errors = await self._async_probe(host)
+        except Exception:  # noqa: BLE001
+            LOGGER.debug(
+                "Discovered candidate %s failed its probe", host, exc_info=True
+            )
+            return None
+        return device
 
     async def _async_probe(
         self, host: str
