@@ -18,6 +18,8 @@ from .const import (
     INPUT_INTERNAL_PLAYER,
     NAME,
     POWER_TAG_SCREEN,
+    SCREEN_LABELS_WHEN_OFF,
+    SCREEN_LABELS_WHEN_ON,
     SETTING_TAG_ANALOG_PANEL,
     SETTING_TAG_AUTO_CHANGE_SOURCE,
     SETTING_TAG_CD_AUTO_PLAY,
@@ -130,6 +132,43 @@ class EversoloToggles:
                 if isinstance(item.get("switchStatus"), bool)
             }
         )
+
+
+@dataclass(frozen=True, slots=True)
+class EversoloScreenState:
+    """Whether the front screen is lit, read off the power menu's label.
+
+    ``is_on`` is ``None`` both before the first read and whenever the label
+    matches neither locale set (ticket 18,
+    docs/screen-power-label-locales.md) — an unlisted device UI locale, most
+    likely. Callers treat that the same way: as "no reading", not a guess.
+    """
+
+    is_on: bool | None = None
+
+    @classmethod
+    def from_power_option(
+        cls, power_option: Mapping[str, Any] | None
+    ) -> EversoloScreenState:
+        """Match the ``screen`` entry's label against the locale table.
+
+        Locale-blind set membership: the "off" and "on" sets share no members
+        across any of the 13 shipped-translation locales, so this does not
+        need to know which language the device is set to.
+        """
+        label = next(
+            (
+                item.get("name")
+                for item in (power_option or {}).get("data") or []
+                if item.get("tag") == POWER_TAG_SCREEN
+            ),
+            None,
+        )
+        if label in SCREEN_LABELS_WHEN_OFF:
+            return cls(is_on=False)
+        if label in SCREEN_LABELS_WHEN_ON:
+            return cls(is_on=True)
+        return cls(is_on=None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1038,10 +1077,10 @@ class EversoloData:
     """Typed container the coordinator hands to entities.
 
     ``playback`` / ``volume`` / ``device`` / ``processing`` / ``visualization``
-    come from ``getState``; ``inputs``
-    and ``toggles`` are parsed out of the settings tier; ``settings`` still
-    holds the loose, rarely-touched blobs keyed by name; ``capabilities`` gates
-    entity creation.
+    come from ``getState``; ``inputs``, ``toggles`` and ``screen`` are parsed
+    out of the settings tier; ``settings`` still holds the loose,
+    rarely-touched blobs keyed by name; ``capabilities`` gates entity
+    creation.
 
     Every slice but ``capabilities`` is always present, empty before the device
     has answered, so entities can read them straight instead of each carrying
@@ -1056,6 +1095,7 @@ class EversoloData:
     visualization: EversoloVisualization = field(default_factory=EversoloVisualization)
     inputs: EversoloInputs = field(default_factory=EversoloInputs)
     toggles: EversoloToggles = field(default_factory=EversoloToggles)
+    screen: EversoloScreenState = field(default_factory=EversoloScreenState)
     settings: Mapping[str, Any] = field(default_factory=dict)
     capabilities: EversoloCapabilities | None = None
 
@@ -1132,6 +1172,7 @@ class EversoloData:
             toggles=EversoloToggles.from_settings(
                 merged.get("system_settings"), merged.get("sub_output_option")
             ),
+            screen=EversoloScreenState.from_power_option(merged.get("power_option")),
             capabilities=capabilities
             if capabilities is not None
             else self.capabilities,

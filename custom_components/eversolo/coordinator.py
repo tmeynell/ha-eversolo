@@ -92,6 +92,13 @@ SETTINGS_FETCHERS: dict[
         lambda capabilities: capabilities.has_screen_brightness,
         lambda client: client.async_get_screen_brightness(),
     ),
+    # Also the screen switch's only state reading — the power menu's
+    # ``screen`` entry carries a label the device recomputes per request
+    # (data.py's ``EversoloScreenState``).
+    "power_option": (
+        lambda capabilities: capabilities.has_screen_power,
+        lambda client: client.async_get_power_option(),
+    ),
     "input_output_state": (
         lambda _: True,
         lambda client: client.async_get_input_output_state(),

@@ -195,12 +195,14 @@ class EversoloApiClient:
     async def async_get_power_option(self) -> dict:
         """Return the power menu — which power actions this unit accepts.
 
-        Read for its tags alone: a ``screen`` tag says the unit has a screen
-        that can be blanked. The entries carry no state field. They do carry a
-        *label* ("Screen off"), and an earlier design read that as a state by
-        matching it against a hard-coded list of seven localised strings —
-        but nothing has ever verified that the label flips with the screen,
-        and it would break on the eighth language regardless.
+        Read for its tags, which say which actions this unit offers (a
+        ``screen`` tag means it has a screen that can be blanked), and for the
+        ``screen`` entry's *label* — the only report anywhere of whether the
+        screen is lit. Polled on the settings tier once the unit has that tag,
+        so :class:`~.data.EversoloScreenState` can re-read it every cycle
+        rather than the config-flow gate reading it once. See
+        ``docs/screen-power-label-locales.md`` for why matching that label is
+        safe despite it being rendered in the device's own UI locale.
         """
         return await self._read("/ZidooMusicControl/v2/getPowerOption")
 

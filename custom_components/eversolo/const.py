@@ -62,6 +62,55 @@ DEFAULT_CD_IMAGE_URL_PATH = f"/api/{DOMAIN}/default_cd.svg"
 # it is currently on.
 POWER_TAG_SCREEN = "screen"
 
+# The power menu's ``screen`` entry carries no state field, only a label the
+# firmware recomputes per request from ``zidoo.close.screen.mode`` — resolved
+# in the *device's* own UI locale, which the integration cannot ask for
+# (RESEARCH.md, "Screen power state is reported"). Ticket 18
+# (docs/screen-power-label-locales.md) recovered every translation the app
+# ships of the two resource strings behind it and confirmed the "off" set and
+# "on" set share no members across all 13 locales or with any other UI text,
+# so a locale-blind membership test is safe: no need to know which language
+# the unit is set to.
+#
+# ``auto_radio_open`` is the label shown while the screen is physically off,
+# ``auto_radio_sleep`` while it is on — backwards from what the resource names
+# suggest; the names are an internal vendor label, only the resolved text
+# matters here.
+SCREEN_LABELS_WHEN_OFF = frozenset(
+    {
+        "Screen on",  # default (English)
+        "画面オン",  # ja
+        "Bildschirm ein",  # de
+        "打开屏幕",  # zh
+        "Ekran włączony",  # pl
+        "Ecran allumé",  # fr
+        "Ekranı aç",  # tr
+        "Obrazovka zapnutá",  # cs
+        "Pantalla encendida",  # es
+        "Schermo acceso",  # it
+        "Tela ligada",  # pt
+        "Экран включен",  # ru
+        "打開屏幕",  # zh-rHK / zh-rTW
+    }
+)
+SCREEN_LABELS_WHEN_ON = frozenset(
+    {
+        "Screen off",  # default (English)
+        "画面オフ",  # ja
+        "Bildschirm aus",  # de
+        "关闭屏幕",  # zh
+        "Zastawiać parawanem",  # pl
+        "Ecran éteint",  # fr
+        "Ekranı kapat",  # tr
+        "Obrazovka vypnutá",  # cs
+        "Pantalla apagada",  # es
+        "Schermo spento",  # it
+        "Tela desligada",  # pt
+        "Экран выключен",  # ru
+        "關閉屏幕",  # zh-rHK / zh-rTW
+    }
+)
+
 # Wake-on-LAN ports the unit answers a magic packet on. Port 9 is what #10's
 # F5 proved wakes this firmware in ~15 s; 9517 is what the vendor's own app
 # broadcasts to (``WakeThread.wakeOnLan``, the app's only wake mechanism —
