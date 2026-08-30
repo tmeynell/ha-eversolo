@@ -14,21 +14,21 @@ _Home Assistant integration for [Eversolo](https://www.eversolo.com/) streamers.
 ## Description
 
 This custom component integrates Eversolo streamers into
-[Home Assistant](https://www.home-assistant.io/). It talks to the device's own
-control API on port 9529 over your LAN — no cloud account, no vendor app, and
-nothing to authenticate.
+[Home Assistant](https://www.home-assistant.io/). It talks directly to your
+streamer over your local network — no cloud account, no vendor app, and
+nothing to log into.
 
-It supports Eversolo's DMP-A line (DMP-A6, DMP-A8, DMP-A10 and other A-series models).
-Every entity is gated on what the device itself reports it has, so entity sets
-vary by model; **only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested.**
-Setup currently only admits a device that identifies itself as a DMP-A model —
-a device that doesn't is refused. Eversolo's PLAY and T series (T8/T10)
-streamers are believed to share the same on-device API, and the DAC-Z series
-is unverified either way, but none of them has been confirmed against real
-hardware, so admission isn't widened to them yet. If you own one and want to
-try it regardless, see
+It supports Eversolo's DMP-A line (DMP-A6, DMP-A8, DMP-A10 and other A-series
+models). The entities you get depend on your specific model — the integration
+only creates entities for features your device actually reports having.
+**Only the DMP-A8 Gen 2 (firmware v1.1.50–v1.1.80) has been tested**; setup
+currently only accepts devices that identify themselves as a DMP-A model, and
+rejects anything else. Eversolo's PLAY and T series (T8/T10) streamers likely
+work the same way under the hood, and the DAC-Z series is untested either
+way, but none of them has been confirmed on real hardware yet, so setup
+doesn't allow them by default. If you own one and want to try it anyway, see
 [Trying this on a PLAY, T8 or T10](docs/trying-unsupported-models.md) for an
-unofficial, unsupported way to bypass the check locally.
+unofficial, unsupported way to bypass that check.
 
 ### Entities
 
@@ -40,7 +40,7 @@ unofficial, unsupported way to bypass the check locally.
 | Button        | Power off            | Turns off device (only on units that report they accept it)                  |
 | Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it) |
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
-| Camera        | Panel view           | Snapshot of the front panel (960x360, downscaled from the mirror stream) — opens and closes a screen-mirror session per snapshot; unlike the screenshot mechanism it replaced, it never wakes the display |
+| Camera        | Panel view           | Snapshot of the front panel (960×360), refreshed on request, without waking the display |
 | Image         | {option} preview     | One per VU/spectrum style option, e.g. "VU meter 3 preview" (only on units with that style list) |
 | Image         | Selected spectrum preview | The currently selected spectrum style's picture, updating as the selection changes (only on units with that style list) |
 | Image         | Selected VU preview  | The currently selected VU style's picture, updating as the selection changes (only on units with that style list) |
@@ -68,79 +68,64 @@ own, which is how Home Assistant names the one entity that _is_ the device.
 
 ### Things worth knowing before you wire it into an automation
 
-**The media player advertises only the controls the current input responds
-to** — on the TV/eARC input the device drives nothing, so transport is greyed
-out rather than failing when pressed.
+**Not every input supports every control.** On the TV/eARC input, for
+example, the device doesn't respond to play/pause/skip, so those buttons show
+as greyed out rather than doing nothing when pressed.
 
-**Its source list carries the hardware inputs plus a synthetic `CD` source** on
-units with a disc drive. Picking `CD` switches the device to its internal
-player and starts the loaded disc playing; selecting it with an empty tray
-raises an error instead of silently doing nothing. The CD auto play switch is
-for the other direction — starting playback as soon as a disc is inserted,
-without picking the source yourself. The source reads back as `CD` while a
-disc is loaded and the internal player is live.
+**CD is a source, not just a switch.** On units with a disc drive, selecting
+`CD` as the source switches the device to its internal player and starts the
+loaded disc playing — if the tray is empty, this fails with an error instead
+of doing nothing. If you'd rather a disc start playing the moment you insert
+it, use the separate CD auto play switch instead. The source reads back as
+`CD` whenever a disc is loaded and playing.
 
-**Auto-switch source closes a real gap: the device doesn't always switch its
-own active input for you.** Starting playback from the Eversolo app, Spotify
-Connect, or another local source can leave the unit sitting on whatever input
-was last selected — audible only once you (or an automation) pick the right
-source by hand. Turning this switch on makes the device switch to the
-Internal Player itself whenever built-in playback or Connect starts — per the
-device's own description of the toggle, it does not cover Bluetooth In.
+**Auto-switch source fixes a real annoyance.** If you start playback from the
+Eversolo app, Spotify Connect, or another built-in source, the device doesn't
+always switch to show/use that input — it can keep playing whatever was
+selected before, with no visible change. Turn this switch on and the device
+will automatically switch to the Internal Player whenever built-in playback
+or Spotify Connect starts (this doesn't apply to Bluetooth).
 
-**The Visualization select's state is a slug, not the label you see.** Its
-three values are `off`, `vu_meter` and `spectrum`, displayed as Off, VU meter
-and Spectrum. An automation has to use the values — `state: "VU meter"` will
-never match. This is the only select where the two differ: every other one
-offers option labels the device itself supplies, and those are used as-is.
+**The Visualization dropdown and its automation value aren't the same text.**
+The dropdown shows Off, VU meter and Spectrum, but automations must use
+`off`, `vu_meter` or `spectrum` — writing `state: "VU meter"` in an automation
+won't match. Every other dropdown in this integration uses the same text in
+both places; this is the one exception.
 
-**The Screen switch assumes its state rather than reading it back.** No field
-the device reports says whether the front display is lit, so the switch just
-remembers what it last asked for, across restarts. Blank the screen at the unit
-itself and the switch won't notice — its next press will be one step out of
-phase. Screen brightness and Visualization aren't affected; the device reports
-both directly.
+**The Screen switch doesn't know the screen's actual state.** The device
+never reports whether its display is on or off, so the switch just remembers
+the last command it sent. If you turn the screen on or off directly at the
+unit, the switch won't notice, and its next toggle will do the opposite of
+what you expect. Screen brightness and Visualization aren't affected by
+this — the device reports those directly.
 
-The device does report the screen's state, but only as the *label* on its power
-menu — "Screen off" while lit, "Screen on" while blanked — rendered in the
-device's own UI locale. Reading it would mean matching translated text, so the
-switch doesn't, yet.
+**A couple of images are loaded straight from the device, unencrypted.** The
+Input sensor's icon, and occasionally the media player's now-playing picture
+(a small source badge, not real album art — never shown for Bluetooth), come
+directly from the device over plain `http://` rather than through Home
+Assistant. If you access your Home Assistant over `https://`, your browser
+may block these as insecure ("mixed content").
 
-**Two entities carry a device-supplied icon as `entity_picture`, fetched
-straight from the device over plain `http://`** — the Input sensor (always,
-once the device has reported one) and, only as a last resort when there is no
-real cover art to show, the media player's now-playing picture (a small
-source badge, not album art; never used on Bluetooth, which has no badge of
-its own). Home Assistant's browser handling of mixed content applies if your
-own UI is served over `https://`.
+**The style preview images show what each option looks like, not which one
+is selected.** There's one image per VU meter/spectrum style so you can
+browse them, but nothing highlights the current selection automatically —
+building that into a dashboard is up to you. To see what's playing right
+now, use the separate Selected VU preview / Selected spectrum preview
+entities instead — their picture always matches the current selection.
 
-**The `{option} preview` Image entities show what each VU/spectrum option
-looks like, not which one is selected.** Home Assistant has no widget that
-binds several thumbnails to one select, so pairing the gallery with the
-select on a dashboard (e.g. a `picture-elements` card tapping
-`select.select_option`) is left to you. The separate `Selected VU preview`/
-`Selected spectrum preview` entities cover the other half — their picture always
-tracks whichever option is currently selected, so a plain `picture` card
-showing one of them is enough to see what the device is doing right now.
-
-**Power is symmetric on units that report `ableRemoteBoot`.** The media
-player's `turn_on`/`turn_off` and the Power On/Off buttons drive the same two
-actions: `turn_on` broadcasts a Wake-on-LAN magic packet (the device's own,
-and only, wake mechanism — there is no power-on command over the API), and
-`turn_off` sends the same command the Power Off button does. Both buttons stay
-even though the media player now covers the same ground, so nothing loses its
-`unique_id`. On a boot-capable unit, the media player reads `off` rather than
-unavailable while the device is unreachable — an unavailable entity cannot be
-sent `turn_on`, which would make it useless for exactly the state it exists
-for — so a genuine network fault and a powered-down unit are indistinguishable
-from the entity's state alone. A unit that does not report `ableRemoteBoot`
-keeps honest unavailability and gets no Power On button.
+**Power buttons and the media player's power controls do the same thing.**
+On models that support remote power-on, turning the media player on sends a
+Wake-on-LAN signal (the only way to wake the device remotely), and turning it
+off sends the same command as the Power Off button — both buttons still work
+independently too. Because there's no way to tell a genuinely unreachable
+device apart from one that's simply powered down, the media player shows as
+"off" rather than "unavailable" on these models, so you can still turn it
+back on. Models that don't support remote power-on show as properly
+unavailable when unreachable, and don't get a Power On button.
 
 ## Requirements
 
-- **Home Assistant 2026.4.0 or newer.** Raised from 2024.11.0 for the Camera platform's panel
-  view, which decodes the screen-mirror socket's H.264 with `av==16.0.1` — the version core's own
-  `stream` component pins at this release.
+- **Home Assistant 2026.4.0 or newer** (needed for the front-panel camera image).
 - The streamer reachable on your LAN at a stable address. Give it a DHCP
   reservation or a static IP; if it does move, `Reconfigure` follows it without
   losing your entities.
@@ -160,20 +145,20 @@ your Home Assistant `custom_components/` folder, then restart Home Assistant.
 
 ## Configuration
 
-Home Assistant discovers a streamer on your LAN via SSDP and offers it under
-`Settings → Devices & services → Discovered`; confirming it is all setup takes.
-Otherwise, use the `Add integration` dialog, search for `Eversolo`, and enter
-the host IP (or hostname) of your streamer. That is all you are asked for: the
-device is contacted on its fixed port 9529 and needs no username or password.
+Home Assistant will usually find your streamer on the network automatically
+and offer it under `Settings → Devices & services → Discovered` — just
+confirm it to finish setup. Otherwise, click `Add integration`, search for
+`Eversolo`, and enter your streamer's IP address (or hostname). That's the
+only thing you're asked for: no username or password needed.
 
-The integration identifies your device by its hardware MAC address, so the same
-unit cannot be added twice. If its IP changes, use `Reconfigure` on the existing
-entry to point it at the new address and keep your entities and automations;
-reconfigure refuses an address that turns out to be a different device.
+The same unit can't be added twice, since it's identified by its hardware
+address. If its IP address changes later, use `Reconfigure` on the existing
+entry to point it at the new address without losing your entities or
+automations.
 
-Polling is fixed: live state (playback, volume, input) is read every 5
-seconds, and the settings tier (brightness, styles, routing, the toggles)
-every 30 seconds and again immediately after any write.
+Home Assistant checks playback status (what's playing, volume, input) every
+5 seconds, and other settings (brightness, styles, routing, toggles) every
+30 seconds, plus immediately after you change one.
 
 The one thing that is configurable is an off-by-default option to look up
 cover art on MusicBrainz and the Cover Art Archive for Bluetooth playback — the
