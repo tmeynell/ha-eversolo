@@ -6,6 +6,13 @@ SemVer contract in `CONTRIBUTING.md`.
 
 ## [Unreleased]
 
+### Added
+
+- The manual add form now checks for Eversolo devices already found on your network and offers
+  any as a pick alongside the host field, so setting one up no longer requires knowing its IP
+  address up front. A network with none found (or one not yet caught by Home Assistant's own
+  discovery) falls back to today's bare host-entry form (#27).
+
 ### Changed
 
 - SSDP discovery of a new device now shows a confirmation form instead of auto-creating the

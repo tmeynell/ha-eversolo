@@ -4,12 +4,14 @@
         "step": {
             "user": {
                 "title": "Add an Eversolo streamer",
-                "description": "Enter the IP address or hostname of the Eversolo device. It is contacted on port 9529 and needs no username or password.",
+                "description": "Enter the IP address or hostname of the Eversolo device, or pick one found on your network below. It is contacted on port 9529 and needs no username or password.",
                 "data": {
+                    "device": "Discovered device",
                     "host": "Host",
                     "enable_musicbrainz_lookup": "Look up cover art for Bluetooth playback"
                 },
                 "data_description": {
+                    "device": "A streamer found on your network. Pick one to skip typing an address.",
                     "host": "The address of the streamer on your network, for example 192.168.0.60. Give it a fixed address, or a DHCP reservation, so it does not move.",
                     "enable_musicbrainz_lookup": "When a Bluetooth track has no cover of its own, look up its artist, title and album on musicbrainz.org and coverartarchive.org to find one. This is the only network traffic this integration sends off your local network, and it is off by default."
                 }
@@ -37,7 +39,8 @@
         },
         "error": {
             "cannot_connect": "Unable to connect to the server.",
-            "unsupported_model": "That address answered, but the device is not a supported Eversolo DMP model."
+            "unsupported_model": "That address answered, but the device is not a supported Eversolo DMP model.",
+            "host_required": "Enter a host, or pick a discovered device."
         },
         "abort": {
             "already_configured": "This Eversolo device is already configured.",

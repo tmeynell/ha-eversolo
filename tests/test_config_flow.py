@@ -12,6 +12,7 @@ from unittest.mock import patch
 import aiohttp
 import pytest
 from homeassistant import config_entries, data_entry_flow
+from homeassistant.components import ssdp
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import format_mac
@@ -23,6 +24,7 @@ from homeassistant.helpers.service_info.ssdp import (
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
+from custom_components.eversolo.config_flow import CONF_DEVICE
 from custom_components.eversolo.const import (
     CONF_ENABLE_MUSICBRAINZ_LOOKUP,
     DOMAIN,
@@ -66,6 +68,20 @@ def _mock_getmodel(
     aioclient_mock.get(
         f"http://{host}:{PORT}/ControlCenter/getModel",
         json=payload,
+    )
+
+
+def _mock_active_search(hass: HomeAssistant, *hosts: str):
+    """Make the manual-add flow's active search answer with ``hosts``' SSDP hits.
+
+    Sets ``ssdp.DOMAIN`` on ``hass.data`` too — without it the flow reads "the
+    ssdp integration isn't set up" and skips the search outright (the guard a
+    bare test ``hass`` would otherwise trip on every manual-add test).
+    """
+    hass.data.setdefault(ssdp.DOMAIN, {})
+    return patch(
+        "custom_components.eversolo.config_flow.ssdp.async_get_discovery_info_by_st",
+        return_value=[_ssdp_discovery(host) for host in hosts],
     )
 
 
@@ -139,6 +155,105 @@ async def test_user_flow_enables_musicbrainz_lookup_when_checked(
     assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"] == {CONF_HOST: HOST}
     assert result["options"] == {CONF_ENABLE_MUSICBRAINZ_LOOKUP: True}
+
+
+async def test_user_flow_offers_a_discovered_device_as_a_pick(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A reachable, admitted device found by the search becomes a pick."""
+    _mock_getmodel(aioclient_mock)
+
+    with _mock_active_search(hass, HOST):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+    assert result["type"] is data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "user"
+    keys = {str(key) for key in result["data_schema"].schema}
+    assert keys == {CONF_DEVICE, CONF_HOST, CONF_ENABLE_MUSICBRAINZ_LOOKUP}
+
+    schema = result["data_schema"].schema
+    (validator,) = (value for key, value in schema.items() if key == CONF_DEVICE)
+    assert validator.container == {HOST: f"DMP-A8 Gen 2 ({HOST})"}
+
+
+async def test_user_flow_selecting_a_discovered_device_skips_typing_a_host(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Picking a discovered device creates the entry without a host in the input."""
+    _mock_getmodel(aioclient_mock)
+
+    with _mock_active_search(hass, HOST):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_DEVICE: HOST}
+        )
+    await hass.async_block_till_done()
+
+    assert result["type"] is data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["data"] == {CONF_HOST: HOST}
+    assert result["result"].unique_id == UNIQUE_ID
+
+
+async def test_user_flow_falls_back_to_manual_entry_when_none_found(
+    hass: HomeAssistant,
+) -> None:
+    """No hits from the search leaves today's bare host-entry form."""
+    with _mock_active_search(hass):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+    assert result["type"] is data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "user"
+    keys = {str(key) for key in result["data_schema"].schema}
+    assert keys == {CONF_HOST, CONF_ENABLE_MUSICBRAINZ_LOOKUP}
+
+
+async def test_user_flow_filters_out_a_found_but_unsupported_device(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A device that answers the search but fails admission is not offered."""
+    _mock_getmodel(aioclient_mock, model="Z9X", disModel="Z9X", deviceName="Z9X")
+
+    with _mock_active_search(hass, HOST):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+    assert result["type"] is data_entry_flow.FlowResultType.FORM
+    keys = {str(key) for key in result["data_schema"].schema}
+    assert keys == {CONF_HOST, CONF_ENABLE_MUSICBRAINZ_LOOKUP}
+
+
+async def test_user_flow_survives_a_discovered_candidate_whose_probe_blows_up(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A candidate whose probe raises is dropped, not left to crash the form.
+
+    ``_async_probe`` deliberately lets an unexpected exception propagate for
+    a host the user typed themselves (api.py) — but a candidate here was
+    never asked for, so the same bug in one device's response must not take
+    down the picker for every device found alongside it.
+    """
+    aioclient_mock.get(
+        f"http://{OTHER_HOST}:{PORT}/ControlCenter/getModel",
+        exc=ValueError("garbled response"),
+    )
+    _mock_getmodel(aioclient_mock, host=HOST)
+
+    with _mock_active_search(hass, HOST, OTHER_HOST):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+    assert result["type"] is data_entry_flow.FlowResultType.FORM
+    schema = result["data_schema"].schema
+    (validator,) = (value for key, value in schema.items() if key == CONF_DEVICE)
+    assert validator.container == {HOST: f"DMP-A8 Gen 2 ({HOST})"}
 
 
 async def test_second_add_of_same_device_aborts(
