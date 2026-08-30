@@ -92,12 +92,13 @@ The dropdown shows Off, VU meter and Spectrum, but automations must use
 won't match. Every other dropdown in this integration uses the same text in
 both places; this is the one exception.
 
-**The Screen switch doesn't know the screen's actual state.** The device
-never reports whether its display is on or off, so the switch just remembers
-the last command it sent. If you turn the screen on or off directly at the
-unit, the switch won't notice, and its next toggle will do the opposite of
-what you expect. Screen brightness and Visualization aren't affected by
-this — the device reports those directly.
+**The Screen switch doesn't yet notice changes made at the device itself.**
+Right now it only remembers the last command Home Assistant sent, not what
+the screen is actually doing — so if you turn the screen on or off directly
+at the unit, the switch won't notice, and its next toggle will do the
+opposite of what you expect. (The device does report its real screen state
+elsewhere; the switch doesn't read it yet. Screen brightness and
+Visualization aren't affected by this — the device reports those directly.)
 
 **A couple of images are loaded straight from the device, unencrypted.** The
 Input sensor's icon, and occasionally the media player's now-playing picture
