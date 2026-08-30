@@ -173,43 +173,40 @@ class EversoloSwitch(EversoloEntity, SwitchEntity):
 class EversoloScreenSwitch(EversoloEntity, SwitchEntity, RestoreEntity):
     """The front screen: lit, or blanked.
 
-    The odd one out on this platform, in two ways. It is not a settings toggle
-    — it is the power menu's ``screen`` action, the same call the Reboot and
-    Power Off buttons use with a different tag — and **no field the device
-    reports says whether the screen is lit**. Not ``getState``, not the
-    settings tree.
+    The odd one out on this platform in how it is written: it is not a
+    settings toggle but the power menu's ``screen`` action, the same call the
+    Reboot and Power Off buttons use with a different tag, and it is
+    momentary — the single call available *toggles*, and reports nothing back.
 
-    The device does nonetheless report the state, in a place that is not a
-    field: ``getPowerOption``'s ``screen`` entry carries a *label*, and the
-    firmware computes it per request from the system property
-    ``zidoo.close.screen.mode`` — "Screen off" while lit, "Screen on" while
-    blanked. Confirmed 2026-08-23 by blanking the screen at the front panel
-    and watching the value flip, so it is a real read-back and not a client
-    remembering itself. An earlier design read exactly this label, matching it
-    against a hard-coded list of seven localised strings, and was removed as
-    unverified; the label was right, the way of reading it is the problem.
-    That string is the *only* exposure of the property anywhere in the API,
-    and it is rendered in the device's own UI locale — so reading it means a
-    string-compare against localised text. Until that is solved this switch
-    stays on its own memory rather than guessing from a translation.
+    It is not odd in how it is read, though not for want of trying elsewhere:
+    ``getPowerOption``'s ``screen`` entry carries a *label*, and the firmware
+    computes it per request from the system property
+    ``zidoo.close.screen.mode`` — confirmed 2026-08-23 by blanking the screen
+    at the front panel and watching the value flip, so it is a real read-back
+    and not a client remembering itself (RESEARCH.md, "Screen power state is
+    reported"). The catch is that the label is rendered in the *device's* own
+    UI locale, which the integration cannot ask for. Ticket 18
+    (docs/screen-power-label-locales.md) recovered every translation the app
+    ships and confirmed a locale-blind set-membership match — is the label in
+    the "on" set or the "off" set — is safe across all 13 locales and free of
+    collisions with any other UI text; :class:`~.data.EversoloScreenState`
+    does that match on the settings tier every cycle.
 
-    Three things follow, and each is deliberate:
+    A label the table has never seen is the one case that reading cannot
+    resolve — an unlisted device UI locale. There this switch falls back to
+    its pre-reading design: :attr:`assumed_state` goes true so the frontend
+    offers on and off separately rather than a toggle that looks like a
+    reading it cannot make, and the last request (restored across restarts,
+    same as before) stands in until a recognised label turns up.
 
-    * ``assumed_state`` — the frontend then offers separate on and off
-      buttons rather than a toggle that looks like a reading.
-    * The last request is **restored across restarts**. It is a guess either
-      way, but a guess that survives a Home Assistant restart is right far
-      more often than one that resets to "unknown" and then guesses again.
-    * A request for the state already shown is not sent. The one call
-      available *toggles*, so the device would take a redundant request as
-      "change" and do the opposite of what was asked.
-
-    The cost of the arrangement is a screen switched at the unit itself: this
-    switch cannot notice, and its next press will be a beat out of step.
-    Nothing the device exposes can fix that.
+    Same optimistic-then-confirmed shape as :class:`EversoloSwitch`: a write
+    shows at once via ``_expected`` and is confirmed by the next settings
+    read, which the coordinator callback drops ``_expected`` in favour of.
+    ``_guess`` is a second, longer-lived memory underneath that — what
+    ``_expected`` degrades to once confirmed, and all there is while the
+    label goes unrecognised.
     """
 
-    _attr_assumed_state = True
     _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:monitor"
     _attr_translation_key = "screen"
@@ -218,22 +215,44 @@ class EversoloScreenSwitch(EversoloEntity, SwitchEntity, RestoreEntity):
         """Initialize the screen switch."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_screen"
-        # What was last asked for. None until something is: no read can supply it.
+        # The write the device has not confirmed yet; None means "no guess".
         self._expected: bool | None = None
+        # The fallback guess, used only while the device's own label goes
+        # unrecognised. None until either a request or a restored state
+        # supplies one.
+        self._guess: bool | None = None
 
     async def async_added_to_hass(self) -> None:
-        """Pick the last request back up, since no read can re-establish it."""
+        """Pick the last request back up, for a locale the table cannot read."""
         await super().async_added_to_hass()
         if (last := await self.async_get_last_state()) is not None:
             if last.state == STATE_ON:
-                self._expected = True
+                self._guess = True
             elif last.state == STATE_OFF:
-                self._expected = False
+                self._guess = False
+
+    def _handle_coordinator_update(self) -> None:
+        """Take the device's word for it, dropping any unconfirmed write."""
+        self._expected = None
+        super()._handle_coordinator_update()
+
+    @property
+    def _reading(self) -> bool | None:
+        """The device's own report, or None if its label matched nothing."""
+        return self.coordinator.data.screen.is_on
 
     @property
     def is_on(self) -> bool | None:
-        """Whether the screen was last asked to be lit, or None if never."""
-        return self._expected
+        """The pending write if there is one, else the reading, else the guess."""
+        if self._expected is not None:
+            return self._expected
+        reading = self._reading
+        return reading if reading is not None else self._guess
+
+    @property
+    def assumed_state(self) -> bool:
+        """True only while there is no reading to show instead of a guess."""
+        return self._reading is None
 
     async def async_turn_on(self, **_: object) -> None:
         """Wake the screen."""
@@ -244,12 +263,16 @@ class EversoloScreenSwitch(EversoloEntity, SwitchEntity, RestoreEntity):
         await self._async_write(False)
 
     async def _async_write(self, enabled: bool) -> None:
-        """Toggle the screen, unless it is already where it was asked to go."""
-        if self._expected is enabled:
+        """Toggle the screen, unless it already reads as where this asks."""
+        if self.is_on is enabled:
             return
         await self.coordinator.client.async_toggle_screen()
         self._expected = enabled
+        self._guess = enabled
         self.async_write_ha_state()
+        # The tree is slow-tier, so confirm the write against the device's
+        # own label instead of leaving the switch on a guess for up to 30 s.
+        await self.coordinator.async_refresh_settings()
 
 
 class EversoloScreensaverSuppressSwitch(EversoloEntity, SwitchEntity, RestoreEntity):

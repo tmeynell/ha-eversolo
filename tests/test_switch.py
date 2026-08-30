@@ -405,24 +405,79 @@ async def _call(hass: HomeAssistant, entity_id: str, service: str) -> None:
     )
 
 
-async def test_the_screen_starts_out_unknown_because_nothing_reports_it(
+# The capture's default label ("Screen off") reads as lit — see
+# docs/screen-power-label-locales.md: the label names the state the *next*
+# press would leave, not the one the screen is in now.
+LABEL_SCREEN_ON = "Screen off"
+LABEL_SCREEN_OFF = "Screen on"
+LABEL_UNRECOGNISED = "Bildschirm an"  # not a translation the table carries
+
+
+def _power_option_with_screen(label: str) -> dict:
+    """Build the power menu as the device reports it with the screen label set."""
+    menu = fixture_json("getpoweroption.json")
+    for item in menu["data"]:
+        if item["tag"] == "screen":
+            item["name"] = label
+    return menu
+
+
+def _fake_screen_device(aioclient_mock, *, on: bool) -> dict:
+    """Prime a device whose screen label flips when the toggle is written."""
+    device = {"on": on, "writes": []}
+
+    def _flip(query: dict[str, str]) -> None:
+        if query.get("tag") == "screen":
+            device["on"] = not device["on"]
+
+    prime_device(
+        aioclient_mock,
+        {
+            GET_POWER_OPTION: answers_with(
+                lambda: _power_option_with_screen(
+                    LABEL_SCREEN_ON if device["on"] else LABEL_SCREEN_OFF
+                )
+            ),
+            SET_POWER_OPTION: records_writes(device["writes"], _flip),
+        },
+    )
+    return device
+
+
+async def test_the_screen_switch_reads_the_devices_real_state(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """No payload anywhere says whether the front screen is lit.
-
-    Not ``getState``, not the settings tree, not the power menu — so this
-    switch assumes nothing rather than claiming a state it cannot have read.
-    """
+    """The capture's label is read straight off, no memory involved."""
     entity_id = await _screen(hass, aioclient_mock)
 
-    assert hass.states.get(entity_id).state == STATE_UNKNOWN
+    assert hass.states.get(entity_id).state == STATE_ON
+
+
+async def test_a_screen_change_at_the_front_panel_shows_up_within_one_poll(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """The power menu is polled on the settings tier, so this is not a guess."""
+    entity_id = await _screen(hass, aioclient_mock)
+    assert hass.states.get(entity_id).state == STATE_ON
+
+    aioclient_mock.clear_requests()
+    prime_device(
+        aioclient_mock,
+        {GET_POWER_OPTION: {"json": _power_option_with_screen(LABEL_SCREEN_OFF)}},
+    )
+    await advance_cycles(hass, freezer, SETTINGS_REFRESH_CYCLES)
+
+    assert hass.states.get(entity_id).state == STATE_OFF
 
 
 async def test_the_screen_switch_writes_the_power_menu_s_screen_tag(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
     """One momentary action does both directions — the device only toggles."""
-    entity_id = await _screen(hass, aioclient_mock)
+    _fake_screen_device(aioclient_mock, on=True)
+    await setup_integration(hass)
+    entity_id = entity_id_for(hass, "_screen")
+    assert hass.states.get(entity_id).state == STATE_ON
 
     await _call(hass, entity_id, SERVICE_TURN_OFF)
 
@@ -435,35 +490,18 @@ async def test_the_screen_switch_writes_the_power_menu_s_screen_tag(
     assert hass.states.get(entity_id).state == STATE_ON
 
 
-async def test_switching_the_screen_to_where_it_already_is_writes_nothing(
+async def test_switching_the_screen_to_where_it_already_reads_writes_nothing(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """The call is a toggle, so a redundant one would do the opposite."""
-    entity_id = await _screen(hass, aioclient_mock)
-    await _call(hass, entity_id, SERVICE_TURN_OFF)
-    writes = calls_to(aioclient_mock, SET_POWER_OPTION)
+    """The guard compares against the reading, so a no-op cannot invert it."""
+    _fake_screen_device(aioclient_mock, on=True)
+    await setup_integration(hass)
+    entity_id = entity_id_for(hass, "_screen")
 
-    await _call(hass, entity_id, SERVICE_TURN_OFF)
+    await _call(hass, entity_id, SERVICE_TURN_ON)
 
-    assert calls_to(aioclient_mock, SET_POWER_OPTION) == writes
-    assert hass.states.get(entity_id).state == STATE_OFF
-
-
-async def test_the_screen_switch_keeps_its_guess_across_a_settings_hiccup(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
-) -> None:
-    """Its guess is all there is; a poll can never confirm or correct it."""
-    entity_id = await _screen(hass, aioclient_mock)
-    await _call(hass, entity_id, SERVICE_TURN_OFF)
-
-    aioclient_mock.clear_requests()
-    prime_device(
-        aioclient_mock,
-        {GET_SYSTEM_SETTINGS: {"exc": aiohttp.ClientError("flaky")}},
-    )
-    await advance_cycles(hass, freezer, SETTINGS_REFRESH_CYCLES)
-
-    assert hass.states.get(entity_id).state == STATE_OFF
+    assert calls_to(aioclient_mock, SET_POWER_OPTION) == 0
+    assert hass.states.get(entity_id).state == STATE_ON
 
 
 async def test_it_is_a_config_entity_too(
@@ -492,21 +530,30 @@ async def test_a_unit_whose_power_menu_has_no_screen_never_gets_the_switch(
     ]
 
 
-async def test_the_screen_switch_says_it_is_assuming_its_state(
+async def test_the_screen_switch_does_not_assume_its_state_for_a_recognised_label(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """The frontend then offers on and off separately, not a lying toggle."""
+    """A real reading means a real toggle, not a pair of guessing buttons."""
     entity_id = await _screen(hass, aioclient_mock)
 
-    assert hass.states.get(entity_id).attributes["assumed_state"] is True
-    # The settings toggles do read their state, so they claim none of this.
-    assert (
-        "assumed_state"
-        not in hass.states.get(entity_id_for(hass, "_cd_auto_play")).attributes
+    assert "assumed_state" not in hass.states.get(entity_id).attributes
+
+
+async def test_an_unrecognised_label_falls_back_to_assuming_its_state(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A locale the table has never seen degrades to the old guess-only design."""
+    entity_id = await _screen(
+        hass,
+        aioclient_mock,
+        {GET_POWER_OPTION: {"json": _power_option_with_screen(LABEL_UNRECOGNISED)}},
     )
 
+    assert hass.states.get(entity_id).state == STATE_UNKNOWN
+    assert hass.states.get(entity_id).attributes["assumed_state"] is True
 
-async def test_the_screen_switch_picks_its_last_request_back_up(
+
+async def test_an_unrecognised_label_still_picks_its_last_request_back_up(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
     """Restarting must not re-arm the coin flip a blank guess would cost.
@@ -516,12 +563,37 @@ async def test_the_screen_switch_picks_its_last_request_back_up(
     that was already dark back on.
     """
     mock_restore_cache(hass, [State("switch.eversolo_dmp_a8_gen_2_screen", STATE_OFF)])
-    entity_id = await _screen(hass, aioclient_mock)
+    entity_id = await _screen(
+        hass,
+        aioclient_mock,
+        {GET_POWER_OPTION: {"json": _power_option_with_screen(LABEL_UNRECOGNISED)}},
+    )
     assert hass.states.get(entity_id).state == STATE_OFF
 
     await _call(hass, entity_id, SERVICE_TURN_OFF)
 
     assert calls_to(aioclient_mock, SET_POWER_OPTION) == 0
+    assert hass.states.get(entity_id).state == STATE_OFF
+
+
+async def test_an_unrecognised_label_keeps_its_guess_across_a_settings_hiccup(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """Its guess is all there is; a failed poll can never confirm or correct it."""
+    entity_id = await _screen(
+        hass,
+        aioclient_mock,
+        {GET_POWER_OPTION: {"json": _power_option_with_screen(LABEL_UNRECOGNISED)}},
+    )
+    await _call(hass, entity_id, SERVICE_TURN_OFF)
+
+    aioclient_mock.clear_requests()
+    prime_device(
+        aioclient_mock,
+        {GET_POWER_OPTION: {"exc": aiohttp.ClientError("flaky")}},
+    )
+    await advance_cycles(hass, freezer, SETTINGS_REFRESH_CYCLES)
+
     assert hass.states.get(entity_id).state == STATE_OFF
 
 

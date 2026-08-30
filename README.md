@@ -93,13 +93,12 @@ The dropdown shows Off, VU meter and Spectrum, but automations must use
 won't match. Every other dropdown in this integration uses the same text in
 both places; this is the one exception.
 
-**The Screen switch doesn't yet notice changes made at the device itself.**
-Right now it only remembers the last command Home Assistant sent, not what
-the screen is actually doing — so if you turn the screen on or off directly
-at the unit, the switch won't notice, and its next toggle will do the
-opposite of what you expect. (The device does report its real screen state
-elsewhere; the switch doesn't read it yet. Screen brightness and
-Visualization aren't affected by this — the device reports those directly.)
+**The Screen switch reads the device's real state**, not just the last
+command Home Assistant sent — so turning the screen on or off at the unit
+itself shows up here within one poll. On the rare device UI language the
+integration doesn't yet recognize the label for, it falls back to
+remembering the last command instead (and shows as an assumed-state toggle
+while it does).
 
 **Suppress screensaver during playback re-touches the device's own timeout,
 rather than disabling it.** The device's screensaver runs on a pure

@@ -445,22 +445,21 @@ async def test_identity_lands_while_the_gates_are_still_waiting(
     assert device.sw_version == "v1.1.50"
 
 
-async def test_the_power_menu_is_read_once_not_polled(
+async def test_the_power_menu_is_polled_on_the_settings_tier(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
 ) -> None:
-    """It says what the unit accepts, and nothing about what it is doing.
+    """It carries the screen switch's only state reading (ticket 42).
 
-    An earlier design polled it every settings cycle to guess at screen state
-    from the wording of a menu label. Nothing reads it that way now, so it
-    belongs with the setup-time profile — one fewer request in every 30 s
-    cycle.
+    So it is polled like every other settings-tier endpoint, not read once at
+    setup as before.
     """
     prime_device(aioclient_mock)
     await _setup(hass)
 
-    assert calls_to(aioclient_mock, GET_POWER_OPTION) == 1
+    reads_after_setup = calls_to(aioclient_mock, GET_POWER_OPTION)
+    assert reads_after_setup >= 1
 
     await _advance(hass, freezer, SETTINGS_REFRESH_CYCLES * 2)
 
-    assert calls_to(aioclient_mock, GET_POWER_OPTION) == 1
+    assert calls_to(aioclient_mock, GET_POWER_OPTION) > reads_after_setup
     assert calls_to(aioclient_mock, GET_SCREEN_BRIGHTNESS) > 1
