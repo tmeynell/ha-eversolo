@@ -125,7 +125,7 @@ unavailable when unreachable, and don't get a Power On button.
 
 ## Requirements
 
-- **Home Assistant 2026.4.0 or newer** (needed for the front-panel camera image).
+- **Home Assistant 2026.4.0 or newer.** (Needed for the front-panel camera image.)
 - The streamer reachable on your LAN at a stable address. Give it a DHCP
   reservation or a static IP; if it does move, `Reconfigure` follows it without
   losing your entities.
