@@ -12,6 +12,17 @@ SemVer contract in `CONTRIBUTING.md`.
   any as a pick alongside the host field, so setting one up no longer requires knowing its IP
   address up front. A network with none found (or one not yet caught by Home Assistant's own
   discovery) falls back to today's bare host-entry form (#27).
+- Camera platform: a "Panel view" snapshot entity, opening the device's screen-mirror socket for
+  one frame per fetch instead of polling a still-image endpoint (#38).
+
+### Removed
+
+- **Breaking:** the `panel_screenshot` image entity, replaced by the new Camera "Panel view"
+  entity above. Its `getScreenShot` transport woke the physical unit's display and popped up an
+  on-screen dialog on every poll; the screen-mirror socket the replacement uses is passive and
+  never does either. Anyone with `image.<name>_panel_screenshot` on a dashboard or in an
+  automation needs to switch to the new `camera.<name>_panel_view` entity — the old `unique_id` is
+  gone from the entity registry, not just renamed (#38).
 
 ### Changed
 

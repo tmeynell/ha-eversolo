@@ -40,7 +40,7 @@ unofficial, unsupported way to bypass the check locally.
 | Button        | Power off            | Turns off device (only on units that report they accept it)                  |
 | Button        | Power on             | Wakes the device over Wake-on-LAN (only on units that report they accept it) |
 | Button        | Reboot               | Reboots device (only on units that report they accept it)                     |
-| Image         | Panel screenshot     | Live capture of the front panel (native 1600x600), refreshed every 60 s      |
+| Camera        | Panel view           | Snapshot of the front panel (960x360, downscaled from the mirror stream) — opens and closes a screen-mirror session per snapshot; unlike the screenshot mechanism it replaced, it never wakes the display |
 | Image         | {option} preview     | One per VU/spectrum style option, e.g. "VU meter 3 preview" (only on units with that style list) |
 | Image         | Selected spectrum preview | The currently selected spectrum style's picture, updating as the selection changes (only on units with that style list) |
 | Image         | Selected VU preview  | The currently selected VU style's picture, updating as the selection changes (only on units with that style list) |
@@ -138,7 +138,9 @@ keeps honest unavailability and gets no Power On button.
 
 ## Requirements
 
-- **Home Assistant 2024.11.0 or newer.**
+- **Home Assistant 2026.4.0 or newer.** Raised from 2024.11.0 for the Camera platform's panel
+  view, which decodes the screen-mirror socket's H.264 with `av==16.0.1` — the version core's own
+  `stream` component pins at this release.
 - The streamer reachable on your LAN at a stable address. Give it a DHCP
   reservation or a static IP; if it does move, `Reconfigure` follows it without
   losing your entities.
