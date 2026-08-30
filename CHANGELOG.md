@@ -14,6 +14,11 @@ SemVer contract in `CONTRIBUTING.md`.
   discovery) falls back to today's bare host-entry form (#27).
 - Camera platform: a "Panel view" snapshot entity, opening the device's screen-mirror socket for
   one frame per fetch instead of polling a still-image endpoint (#38).
+- The "Panel view" camera now streams live at the device's own capture rate (~40 fps) while a
+  dashboard card is actually viewing it, instead of only ever offering a single still snapshot.
+  The screen-mirror session opens for the life of the viewing request and closes the moment it
+  ends; a mid-stream drop (device asleep, socket reset) reconnects with backoff rather than
+  leaving the entity stuck (#39).
 - A "Suppress screensaver during playback" switch. The device's screensaver runs on a pure
   idle-since-last-write clock, blind to playback, with no app-level flag to turn it off during
   playback — so while the switch is on and something is playing, the integration periodically
