@@ -79,6 +79,10 @@ GET_RECENTLY_PLAYED = "/ZidooMusicControl/v2/getRecentlyPlayedMusicList"
 # Never called (#47's own acceptance criterion) — named so a test can assert
 # zero calls to it rather than trusting an absence of code to stay absent.
 GET_FOLDERS = "/ZidooMusicControl/v2/getFolders"
+# ``play_media``/``clear_playlist`` (#48), not polled — same reason as
+# ``GET_CD_LIST`` above.
+ADD_LOCAL_SONGS_TO_QUEUE = "/ZidooMusicControl/v2/addLocalSongsToPlayQueue"
+REMOVE_ALL_PLAY_QUEUE = "/ZidooMusicControl/v2/removeAllPlayQueue"
 
 # Every endpoint the coordinator polls, with the capture that answers it.
 DEVICE_ENDPOINTS: dict[str, str] = {
@@ -111,6 +115,8 @@ COMMAND_PATHS = (
     "/ZidooMusicControl/v2/setLoopMode",
     "/ZidooMusicControl/v2/setPowerOption",
     "/ZidooMusicControl/v2/playCDMusic",
+    "/ZidooMusicControl/v2/addLocalSongsToPlayQueue",
+    "/ZidooMusicControl/v2/removeAllPlayQueue",
     "/ZidooControlCenter/RemoteControl/sendkey",
     "/SystemSettings/playSettings/setCDAutoPlay",
     "/SystemSettings/playSettings/setGallessnewPlay",

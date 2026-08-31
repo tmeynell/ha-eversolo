@@ -44,6 +44,25 @@ SCREENSAVER_KEEPALIVE_CYCLES = 18
 CD_SOURCE = "CD"
 INPUT_INTERNAL_PLAYER = "XMOS"
 
+# ``addLocalSongsToPlayQueue``'s ``type`` param — what ``id`` names (#48).
+# Recovered from the mined ``MusicServer.addLocalSongsToPlayQueue`` handler
+# (docs/api-endpoints.md) and confirmed live 2026-08-31: the endpoint also
+# accepts playlist (3) and composer (4), out of scope here — the browse tree
+# (#47) only ever produces track/album/artist ids.
+QUEUE_CONTENT_TRACK = 0
+QUEUE_CONTENT_ALBUM = 1
+QUEUE_CONTENT_ARTIST = 2
+
+# The same endpoint's ``playType`` param — where the content lands relative to
+# what's already queued. Live-verified 2026-08-31 against a real device: 1
+# inserts right after the current track (HA's ``enqueue: next``), 2 appends to
+# the end without touching what's playing (``enqueue: add``), 3 adds the
+# content and starts it playing immediately (``enqueue: play``/``replace``,
+# paired with clearing the queue first — see ``async_play_media``).
+QUEUE_ACTION_NEXT = 1
+QUEUE_ACTION_ADD = 2
+QUEUE_ACTION_PLAY = 3
+
 # Top-level ``playType`` for Bluetooth — see ``EversoloPlayback.from_state``.
 # The only source ``from_state`` never gives a cover for, hence the one the
 # optional MusicBrainz lookup (#18) targets.

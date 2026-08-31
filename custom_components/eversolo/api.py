@@ -492,6 +492,45 @@ class EversoloApiClient:
         """
         return await self._read("/ZidooMusicControl/v2/getCDList")
 
+    async def async_add_local_content_to_queue(
+        self, item_id: int, queue_type: int, action: int
+    ) -> None:
+        """Add local library content to the play queue (``play_media``, #48).
+
+        ``queue_type`` says what ``item_id`` names — a track, album or artist
+        (``QUEUE_CONTENT_*`` in const.py); ``action`` says where it lands
+        relative to what's already queued (``QUEUE_ACTION_*``). The ``id``/
+        ``type``/``playType`` triple is the whole story for these three content
+        types — recovered from the mined ``MusicServer.addLocalSongsToPlayQueue``
+        handler and confirmed live: the richer ``artistId``/``albumType``/
+        ``albumTypeId``/``sort`` refinements it also accepts are not needed for
+        ids the browse tree (#47) produces.
+
+        Only ``QUEUE_ACTION_PLAY`` switches the active input to the internal
+        player by itself, the same as ``playCDMusic`` (#36) — confirmed live
+        with a different input audible beforehand, no prior
+        ``async_set_input`` call needed. ``QUEUE_ACTION_NEXT``/``_ADD`` do
+        **not**: confirmed live, both leave the active input untouched and
+        just edit the internal player's queue in the background — genuinely
+        non-disruptive, matching what an HA ``enqueue: next``/``add`` caller
+        would expect while listening to a different source.
+        """
+        await self._command(
+            "/ZidooMusicControl/v2/addLocalSongsToPlayQueue"
+            f"?id={item_id}&type={queue_type}&playType={action}"
+        )
+
+    async def async_clear_play_queue(self) -> None:
+        """Clear the play queue (``clear_playlist``, #48).
+
+        The vendor app gates its own "clear queue" button on
+        ``SupportedFeaturesUtil.isCanRemoveAllPlayQueue()`` (docs/api-endpoints.md)
+        — no corresponding device-reported field was found to mirror that gate
+        with, and the reference device accepts this call regardless of what
+        that check would say on it.
+        """
+        await self._command("/ZidooMusicControl/v2/removeAllPlayQueue")
+
     async def async_play_cd_music(self, uri: str, index: int) -> None:
         """Make the disc at ``uri`` audible, starting at its ``index``-th track.
 
