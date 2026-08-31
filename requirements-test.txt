@@ -27,4 +27,4 @@ av==17.0.1
 # unconditionally at module level (no try/except), so it has to be installed
 # for tests to even collect test_camera.py, the same way async-upnp-client
 # above stands in for what a real deployment's own camera platform installs.
-PyTurboJPEG==1.8.0
+PyTurboJPEG==2.5.0
