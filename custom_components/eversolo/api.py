@@ -481,6 +481,18 @@ class EversoloApiClient:
             f"?start={start}&count={count}"
         )
 
+    async def async_search_music(self, key: str, start: int, count: int) -> dict:
+        """Search the local library by filename/metadata substring (#49).
+
+        Local-only: unlike every per-service ``searchXXX`` in this API, it
+        takes no service/platform parameter. Each hit in ``array`` is wrapped
+        as ``{"keyName": …, "result": {…track…}}`` — callers unwrap ``result``.
+        """
+        return await self._read(
+            f"/ZidooMusicControl/v2/searchMusicV2?key={quote(key, safe='')}"
+            f"&start={start}&count={count}"
+        )
+
     async def async_get_cd_list(self) -> list[dict]:
         """Return the loaded disc(s), or an empty list when the tray is empty.
 

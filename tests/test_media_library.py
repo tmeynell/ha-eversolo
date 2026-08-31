@@ -11,6 +11,7 @@ from custom_components.eversolo.media_library import (
     LIBRARY_ALBUMS,
     LIBRARY_ARTISTS,
     LIBRARY_RECENTLY_PLAYED,
+    async_search_library,
 )
 
 from .helpers import (
@@ -20,6 +21,7 @@ from .helpers import (
     GET_ARTISTS,
     GET_FOLDERS,
     GET_RECENTLY_PLAYED,
+    SEARCH_MUSIC,
     calls_to,
     entity_id_for,
     entity_object,
@@ -253,6 +255,45 @@ async def test_a_non_numeric_id_is_a_browse_error_not_a_crash(
 
     with pytest.raises(BrowseError):
         await player.async_browse_media(media_content_type, "not-a-number")
+
+
+async def test_search_library_unwraps_each_hit_into_a_track_node(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``searchMusicV2``'s ``{"keyName", "result"}`` wrapper is stripped to the track (#49)."""
+    player = await _player(
+        hass,
+        aioclient_mock,
+        _library_overrides(**{SEARCH_MUSIC: fixture_json("searchmusicv2.json")}),
+    )
+
+    results = await async_search_library(player.coordinator.client, "radiohead")
+
+    assert query_of(aioclient_mock, SEARCH_MUSIC)["key"] == "radiohead"
+    assert [track.title for track in results] == [
+        "203-radiohead-lift",
+        "Burn the Witch",
+    ]
+    burn = results[1]
+    assert burn.media_content_type == MediaType.TRACK
+    assert burn.media_content_id == "6111"
+    assert burn.can_play is True
+    assert "id=6111" in burn.thumbnail
+
+
+async def test_search_library_with_no_hits_returns_no_nodes(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A zero-results query answers an empty list, not an error (#49)."""
+    player = await _player(
+        hass,
+        aioclient_mock,
+        _library_overrides(**{SEARCH_MUSIC: fixture_json("searchmusicv2_empty.json")}),
+    )
+
+    results = await async_search_library(player.coordinator.client, "nosuchtrack")
+
+    assert results == []
 
 
 async def test_getfolders_is_never_called(

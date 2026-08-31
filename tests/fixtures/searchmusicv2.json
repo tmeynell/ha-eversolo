@@ -1,0 +1,42 @@
+{
+    "key": "RADIOHEAD",
+    "start": 0,
+    "count": 2,
+    "total": 23,
+    "array": [
+        {
+            "keyName": {
+                "filterName": "fileName",
+                "keyArrays": ["radiohead"],
+                "keyNumber": 1
+            },
+            "result": {
+                "id": 7301,
+                "title": "203-radiohead-lift",
+                "album": "Unknown Album",
+                "artist": "Unknown Artist",
+                "fileName": "203-radiohead-lift",
+                "extension": "flac",
+                "uri": "/Library/Unsorted/203-radiohead-lift.flac",
+                "type": 1
+            }
+        },
+        {
+            "keyName": {
+                "filterName": "album",
+                "keyArrays": ["radiohead"],
+                "keyNumber": 1
+            },
+            "result": {
+                "id": 6111,
+                "title": "Burn the Witch",
+                "album": "Radiohead-OK_Computer_OKNOTOK_1997_2017-REMASTERED-2CD-FLAC-2017-NBFLAC",
+                "artist": "Radiohead",
+                "fileName": "Burn the Witch",
+                "extension": "flac",
+                "uri": "/Library/Radiohead/OK Computer OKNOTOK/01 Burn the Witch.flac",
+                "type": 1
+            }
+        }
+    ]
+}
