@@ -3,7 +3,7 @@
 # aioclient_mock, the hass fixture, and enable_custom_integrations. requirements.txt is pinned to
 # match; earlier comments here claimed both matched 2026.4.0, which was never true for this phcc
 # release and only surfaced when the dev venv actually installed exactly what was pinned.
-pytest-homeassistant-custom-component==0.13.356
+pytest-homeassistant-custom-component==0.13.359
 
 # Matches manifest.json's requirements pin — HA installs this itself in a real
 # deployment, but the test environment needs its own copy since coordinator.py
