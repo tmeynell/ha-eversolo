@@ -563,7 +563,7 @@ class EversoloApiClient:
     # ------------------------------------------------------------------
 
     def create_image_url_by_song_id(self, song_id, music_type: int | None) -> str:
-        """Create url to fetch album covers when using the internal player.
+        """Create url to fetch a track/disc cover when using the internal player.
 
         ``musicType`` and ``type`` are both required — the endpoint 806s
         ("The resource does not exist") with only ``id`` and ``target``,
@@ -574,11 +574,18 @@ class EversoloApiClient:
         is the app's constant for this call (``TYPE_AUTO``) and is not
         derived from anything. Live-verified against the A8: the old URL
         answers ``806``, the new one returns the disc's actual cover.
+
+        ``type=4`` only works for a *song*-shaped id (track, disc — musicType
+        0/1/5). An *album* id (musicType 2) 806s under ``type=4`` and needs
+        ``type=1`` (``MusicImageLoader.album()``'s ``TYPE_ALBUM``) instead —
+        live-verified against the A8 while chasing #47's browse_media
+        thumbnails showing blank for every album.
         """
         music_type = 0 if music_type is None else music_type
+        image_type = 1 if music_type == 2 else 4
         return self._url(
             f"/ZidooMusicControl/v2/getImage?id={song_id}&musicType={music_type}"
-            "&type=4&target=16"
+            f"&type={image_type}&target=16"
         )
 
     def create_image_url_by_path(self, path) -> str:

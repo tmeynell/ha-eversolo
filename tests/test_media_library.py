@@ -93,6 +93,7 @@ async def test_albums_branch_lists_albums_with_thumbnails(
     assert moon.can_play is True
     assert "id=469" in moon.thumbnail
     assert "musicType=2" in moon.thumbnail
+    assert "type=1" in moon.thumbnail
 
 
 async def test_artists_branch_lists_artists_without_thumbnails(
