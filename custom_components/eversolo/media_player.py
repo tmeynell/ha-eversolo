@@ -28,8 +28,10 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.components.media_player import (
+    ATTR_MEDIA_ENQUEUE,
     BrowseMedia,
     MediaPlayerDeviceClass,
+    MediaPlayerEnqueue,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
@@ -48,6 +50,12 @@ from .const import (
     LOOP_MODEL_REPEAT_ONE,
     LOOP_MODEL_SHUFFLE,
     PLAY_TYPE_BLUETOOTH,
+    QUEUE_ACTION_ADD,
+    QUEUE_ACTION_NEXT,
+    QUEUE_ACTION_PLAY,
+    QUEUE_CONTENT_ALBUM,
+    QUEUE_CONTENT_ARTIST,
+    QUEUE_CONTENT_TRACK,
 )
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import EversoloPlayback, EversoloVolume
@@ -69,6 +77,24 @@ _REPEAT_BY_LOOP_MODEL = {
     LOOP_MODEL_REPEAT_ONE: RepeatMode.ONE,
 }
 _LOOP_MODEL_BY_REPEAT = {mode: model for model, mode in _REPEAT_BY_LOOP_MODEL.items()}
+
+# What the local browse tree (#47) can hand ``play_media``, mapped onto
+# ``addLocalSongsToPlayQueue``'s ``type`` — see :mod:`.media_library`.
+_QUEUE_CONTENT_BY_MEDIA_TYPE = {
+    MediaType.TRACK: QUEUE_CONTENT_TRACK,
+    MediaType.ALBUM: QUEUE_CONTENT_ALBUM,
+    MediaType.ARTIST: QUEUE_CONTENT_ARTIST,
+}
+
+# HA's four ``enqueue`` values, mapped onto the same endpoint's ``playType``
+# (#48) — live-verified (RESEARCH.md, 2026-08-31). ``play``/``replace`` are
+# not the same action (``QUEUE_ACTION_PLAY`` alone only adds and plays, it
+# does not clear what's already queued), so both are handled in
+# ``async_play_media`` rather than folded into this table.
+_QUEUE_ACTION_BY_ENQUEUE = {
+    MediaPlayerEnqueue.NEXT: QUEUE_ACTION_NEXT,
+    MediaPlayerEnqueue.ADD: QUEUE_ACTION_ADD,
+}
 
 
 def _ignored(action: str) -> None:
@@ -221,7 +247,12 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         if capabilities is not None and capabilities.has_power_off:
             features |= MediaPlayerEntityFeature.TURN_OFF
         if playback.has_play_queue:
-            features |= MediaPlayerEntityFeature.BROWSE_MEDIA
+            features |= (
+                MediaPlayerEntityFeature.BROWSE_MEDIA
+                | MediaPlayerEntityFeature.PLAY_MEDIA
+                | MediaPlayerEntityFeature.MEDIA_ENQUEUE
+                | MediaPlayerEntityFeature.CLEAR_PLAYLIST
+            )
 
         return features
 
@@ -614,3 +645,53 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         return await async_browse_library(
             self.coordinator.client, media_content_type, media_content_id
         )
+
+    # ------------------------------------------------------------------
+    # Playing from the local library (#48).
+    # ------------------------------------------------------------------
+
+    async def async_play_media(
+        self, media_type: MediaType | str, media_id: str, **kwargs: Any
+    ) -> None:
+        """Play a track, album or artist id from :mod:`.media_library`.
+
+        ``replace``/``play`` (the default when ``enqueue`` is omitted) is not
+        one device call: the endpoint that adds-and-plays never clears what it
+        finds already queued, so a genuine replace clears the queue first —
+        live-verified, RESEARCH.md 2026-08-31. ``next`` and ``add`` fire the
+        one call unchanged (``_QUEUE_ACTION_BY_ENQUEUE``); neither touches the
+        queue's existing contents.
+        """
+        queue_type = _QUEUE_CONTENT_BY_MEDIA_TYPE.get(media_type)
+        if queue_type is None:
+            raise ServiceValidationError(
+                f"Cannot play {media_type}: only track, album and artist ids "
+                "from this device's local library are supported"
+            )
+        try:
+            item_id = int(media_id)
+        except ValueError:
+            raise ServiceValidationError(
+                f"{media_id} is not a local library id"
+            ) from None
+
+        enqueue = kwargs.get(ATTR_MEDIA_ENQUEUE)
+        if enqueue in (None, MediaPlayerEnqueue.PLAY, MediaPlayerEnqueue.REPLACE):
+            await self.coordinator.client.async_clear_play_queue()
+            action = QUEUE_ACTION_PLAY
+        else:
+            action = _QUEUE_ACTION_BY_ENQUEUE[enqueue]
+
+        await self.coordinator.client.async_add_local_content_to_queue(
+            item_id, queue_type, action
+        )
+        if action == QUEUE_ACTION_PLAY:
+            # No guess for ``source``: the device switches to the internal
+            # player by itself (docstring above), but its display name is
+            # whatever the unit was configured with — the next poll reports
+            # it, same as every other command here that can't know it.
+            self._expect(state=MediaPlayerState.PLAYING)
+
+    async def async_clear_playlist(self) -> None:
+        """Clear the play queue."""
+        await self.coordinator.client.async_clear_play_queue()

@@ -61,13 +61,16 @@ def _thumbnail_for(client: EversoloApiClient, item_id: int, music_type: int) -> 
 
 
 def _album_node(client: EversoloApiClient, album: dict[str, Any]) -> BrowseMedia:
-    """One album, browsable into its tracks. Thumbnail: ``getImage`` works for albums."""
+    """One album, browsable into its tracks or playable whole (#48).
+
+    Thumbnail: ``getImage`` works for albums.
+    """
     return BrowseMedia(
         media_class=MediaClass.ALBUM,
         media_content_id=str(album["id"]),
         media_content_type=MediaType.ALBUM,
         title=album.get("name") or "Unknown Album",
-        can_play=False,
+        can_play=True,
         can_expand=True,
         thumbnail=_thumbnail_for(client, album["id"], music_type=2),
     )
@@ -80,33 +83,27 @@ def _artist_node(artist: dict[str, Any]) -> BrowseMedia:
     every ``musicType`` tried against an artist id, and the online fallback
     ``getArtistImages`` comes back empty (RESEARCH.md, "Ticket 15") — leave
     the node bare and let HA render its own placeholder rather than
-    substituting a generic icon.
+    substituting a generic icon. Playable whole as well as browsable, since
+    #48 wired every artist's id up to ``play_media``.
     """
     return BrowseMedia(
         media_class=MediaClass.ARTIST,
         media_content_id=str(artist["id"]),
         media_content_type=MediaType.ARTIST,
         title=artist.get("name") or "Unknown Artist",
-        can_play=False,
+        can_play=True,
         can_expand=True,
     )
 
 
 def _track_node(client: EversoloApiClient, track: dict[str, Any]) -> BrowseMedia:
-    """One track leaf. Thumbnail: ``getImage`` with the track's own id, musicType=1.
-
-    ``can_play=False``: this ticket only builds the browse tree and its content
-    ids for ``play_media`` (#48) to consume — the entity advertises no
-    ``PLAY_MEDIA`` feature and has no ``async_play_media`` yet, so a track
-    marked playable here would be a dead end in HA's media browser. Flip this
-    once #48 lands.
-    """
+    """One track leaf. Thumbnail: ``getImage`` with the track's own id, musicType=1."""
     return BrowseMedia(
         media_class=MediaClass.TRACK,
         media_content_id=str(track["id"]),
         media_content_type=MediaType.TRACK,
         title=track.get("title") or "Unknown Track",
-        can_play=False,
+        can_play=True,
         can_expand=False,
         thumbnail=_thumbnail_for(client, track["id"], music_type=1),
     )
@@ -186,7 +183,7 @@ async def async_browse_library(
             media_content_id=media_content_id,
             media_content_type=MediaType.ALBUM,
             title=title,
-            can_play=False,
+            can_play=True,
             can_expand=True,
             children=[_track_node(client, track) for track in tracks],
         )
@@ -208,7 +205,7 @@ async def async_browse_library(
             media_content_id=media_content_id,
             media_content_type=MediaType.ARTIST,
             title=title,
-            can_play=False,
+            can_play=True,
             can_expand=True,
             children=[_album_node(client, album) for album in albums],
         )

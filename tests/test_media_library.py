@@ -88,7 +88,7 @@ async def test_albums_branch_lists_albums_with_thumbnails(
     assert moon.media_content_id == "469"
     assert moon.media_class == MediaClass.ALBUM
     assert moon.can_expand is True
-    assert moon.can_play is False
+    assert moon.can_play is True
     assert "id=469" in moon.thumbnail
     assert "musicType=2" in moon.thumbnail
 
@@ -109,6 +109,7 @@ async def test_artists_branch_lists_artists_without_thumbnails(
     assert tribe.title == "A Tribe Called Quest"
     assert tribe.media_content_type == MediaType.ARTIST
     assert tribe.media_content_id == "10000820"
+    assert tribe.can_play is True
     assert tribe.media_class == MediaClass.ARTIST
     assert tribe.can_expand is True
     assert tribe.thumbnail is None
@@ -129,13 +130,14 @@ async def test_browsing_into_an_album_lists_its_tracks(
     assert query_of(aioclient_mock, GET_ALBUM_MUSICS)["id"] == "469"
     assert node.title == "A Moon Shaped Pool"
     assert node.media_class == MediaClass.ALBUM
+    assert node.can_play is True
     assert len(node.children) == 3
     track = node.children[0]
     assert track.title == "Burn the Witch"
     assert track.media_content_type == MediaType.TRACK
     assert track.media_content_id == "6111"
     assert track.media_class == MediaClass.TRACK
-    assert track.can_play is False
+    assert track.can_play is True
     assert track.can_expand is False
     assert "id=6111" in track.thumbnail
     assert "musicType=1" in track.thumbnail
@@ -156,6 +158,7 @@ async def test_browsing_into_an_artist_lists_their_albums(
     assert query_of(aioclient_mock, GET_ARTIST_ALBUMS)["id"] == "10000820"
     assert node.title == "A Tribe Called Quest"
     assert node.media_class == MediaClass.ARTIST
+    assert node.can_play is True
     assert len(node.children) == 1
     album = node.children[0]
     assert album.title == "The Anthology"
@@ -181,7 +184,7 @@ async def test_recently_played_lists_tracks_directly(
     assert node.media_class == MediaClass.DIRECTORY
     assert len(node.children) == 3
     assert node.children[0].media_content_type == MediaType.TRACK
-    assert node.children[0].can_play is False
+    assert node.children[0].can_play is True
 
 
 @pytest.mark.parametrize(

@@ -9,18 +9,24 @@ import aiohttp
 import pytest
 from homeassistant.components.media_player import (
     ATTR_INPUT_SOURCE,
+    ATTR_MEDIA_CONTENT_ID,
+    ATTR_MEDIA_CONTENT_TYPE,
+    ATTR_MEDIA_ENQUEUE,
     ATTR_MEDIA_REPEAT,
     ATTR_MEDIA_SEEK_POSITION,
     ATTR_MEDIA_SHUFFLE,
     ATTR_MEDIA_VOLUME_LEVEL,
     ATTR_MEDIA_VOLUME_MUTED,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
+    SERVICE_CLEAR_PLAYLIST,
+    SERVICE_PLAY_MEDIA,
     SERVICE_REPEAT_SET,
     SERVICE_SELECT_SOURCE,
     SERVICE_SHUFFLE_SET,
     MediaPlayerDeviceClass,
     MediaPlayerEntityFeature,
     MediaPlayerState,
+    MediaType,
     RepeatMode,
 )
 from homeassistant.const import (
@@ -49,6 +55,7 @@ from custom_components.eversolo.const import (
 )
 
 from .helpers import (
+    ADD_LOCAL_SONGS_TO_QUEUE,
     BASE_URL,
     GET_CD_LIST,
     GET_INPUT_OUTPUT,
@@ -56,6 +63,7 @@ from .helpers import (
     GET_STATE,
     GET_SYSTEM_SETTINGS,
     PLAY_CD_MUSIC,
+    REMOVE_ALL_PLAY_QUEUE,
     SET_INPUT,
     SET_POWER_OPTION,
     UNIQUE_ID,
@@ -938,6 +946,123 @@ async def test_browse_media_is_absent_without_the_gate(
 
     features = hass.states.get(entity_id).attributes[ATTR_SUPPORTED_FEATURES]
     assert not features & MediaPlayerEntityFeature.BROWSE_MEDIA
+
+
+async def test_play_media_is_gated_on_has_play_queue(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``PLAY_MEDIA``/``MEDIA_ENQUEUE``/``CLEAR_PLAYLIST`` share ``BROWSE_MEDIA``'s gate (#48)."""
+    entity_id = await _player(hass, aioclient_mock)
+
+    features = hass.states.get(entity_id).attributes[ATTR_SUPPORTED_FEATURES]
+    assert features & MediaPlayerEntityFeature.PLAY_MEDIA
+    assert features & MediaPlayerEntityFeature.MEDIA_ENQUEUE
+    assert features & MediaPlayerEntityFeature.CLEAR_PLAYLIST
+
+
+async def _play_media(
+    hass: HomeAssistant,
+    entity_id: str,
+    media_type: str,
+    media_id: str,
+    enqueue: str | None = None,
+) -> None:
+    """Call the ``play_media`` service the way HA's media browser would."""
+    data = {ATTR_MEDIA_CONTENT_TYPE: media_type, ATTR_MEDIA_CONTENT_ID: media_id}
+    if enqueue is not None:
+        data[ATTR_MEDIA_ENQUEUE] = enqueue
+    await _call(hass, SERVICE_PLAY_MEDIA, entity_id, **data)
+
+
+@pytest.mark.parametrize(
+    ("media_type", "queue_type"),
+    [(MediaType.TRACK, "0"), (MediaType.ALBUM, "1"), (MediaType.ARTIST, "2")],
+)
+async def test_play_media_clears_the_queue_and_plays_by_default(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    media_type: str,
+    queue_type: str,
+) -> None:
+    """No ``enqueue`` means replace: clear the queue, then add-and-play (#48)."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _play_media(hass, entity_id, media_type, "469")
+
+    assert calls_to(aioclient_mock, REMOVE_ALL_PLAY_QUEUE) == 1
+    assert query_of(aioclient_mock, ADD_LOCAL_SONGS_TO_QUEUE) == {
+        "id": "469",
+        "type": queue_type,
+        "playType": "3",
+    }
+    assert hass.states.get(entity_id).state == MediaPlayerState.PLAYING
+
+
+@pytest.mark.parametrize(("enqueue", "play_type"), [("next", "1"), ("add", "2")])
+async def test_play_media_enqueue_modes_do_not_clear_the_queue(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    enqueue: str,
+    play_type: str,
+) -> None:
+    """``next``/``add`` insert without touching what's already queued (#48)."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _play_media(hass, entity_id, MediaType.TRACK, "6111", enqueue=enqueue)
+
+    assert calls_to(aioclient_mock, REMOVE_ALL_PLAY_QUEUE) == 0
+    assert query_of(aioclient_mock, ADD_LOCAL_SONGS_TO_QUEUE) == {
+        "id": "6111",
+        "type": "0",
+        "playType": play_type,
+    }
+
+
+async def test_play_media_replace_also_clears_the_queue(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``enqueue: replace`` is handled the same as the default (#48)."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _play_media(hass, entity_id, MediaType.ALBUM, "469", enqueue="replace")
+
+    assert calls_to(aioclient_mock, REMOVE_ALL_PLAY_QUEUE) == 1
+    assert query_of(aioclient_mock, ADD_LOCAL_SONGS_TO_QUEUE)["playType"] == "3"
+
+
+async def test_play_media_rejects_an_unsupported_content_type(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Only track/album/artist ids from the local library are playable (#48)."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    with pytest.raises(ServiceValidationError):
+        await _play_media(hass, entity_id, MediaType.PLAYLIST, "1")
+
+    assert calls_to(aioclient_mock, ADD_LOCAL_SONGS_TO_QUEUE) == 0
+
+
+async def test_play_media_rejects_a_non_numeric_id(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A malformed id is refused cleanly, not sent on to the device (#48)."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    with pytest.raises(ServiceValidationError):
+        await _play_media(hass, entity_id, MediaType.TRACK, "not-a-number")
+
+    assert calls_to(aioclient_mock, ADD_LOCAL_SONGS_TO_QUEUE) == 0
+
+
+async def test_clear_playlist_clears_the_queue(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``clear_playlist`` wires straight to ``removeAllPlayQueue`` (#48)."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _call(hass, SERVICE_CLEAR_PLAYLIST, entity_id)
+
+    assert calls_to(aioclient_mock, REMOVE_ALL_PLAY_QUEUE) == 1
 
 
 async def test_turn_on_sends_a_magic_packet_and_no_http_command(
