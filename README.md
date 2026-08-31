@@ -34,7 +34,7 @@ unofficial, unsupported way to bypass that check.
 
 | Platform      | Name                 | Description                                                                   |
 |---------------|----------------------|-------------------------------------------------------------------------------|
-| Media Player  | _(the device itself)_| Now playing, transport, volume/mute and source                                |
+| Media Player  | _(the device itself)_| Now playing, transport, volume/mute, source, and browsing/playing/searching the device's local music library |
 | Binary Sensor | DSP active           | Diagnostic: whether DSP is engaged for the currently selected input           |
 | Binary Sensor | EQ active            | Diagnostic: whether output EQ is engaged (only on units that have an EQ side) |
 | Button        | Power off            | Turns off device (only on units that report they accept it)                  |
@@ -139,6 +139,16 @@ device apart from one that's simply powered down, the media player shows as
 "off" rather than "unavailable" on these models, so you can still turn it
 back on. Models that don't support remote power-on show as properly
 unavailable when unreachable, and don't get a Power On button.
+
+**The media player can browse, play and search the device's local music
+library** (units with a play queue only). Browsing offers Albums, Artists and
+Recently Played; playing a track, album or artist from there — or from HA's
+`search_media` — replaces the current queue by default, or adds to it via the
+usual `enqueue` options. Search matches filenames as readily as tags, so on a
+library with untidy filenames the results can look scruffy (a scene-release
+string, a bare filename) rather than clean metadata — that's the device's own
+matching, not a bug in this integration. Folder browsing isn't offered: the
+device's folder listing leaks your SMB share password in plain text.
 
 ## Requirements
 
