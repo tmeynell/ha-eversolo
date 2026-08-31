@@ -124,6 +124,21 @@ def _directory(
     )
 
 
+async def async_search_library(
+    client: EversoloApiClient, search_query: str
+) -> list[BrowseMedia]:
+    """Search the local library for tracks matching ``search_query`` (#49).
+
+    ``searchMusicV2`` is filename-driven, not metadata-quality — matches can
+    be scene-release strings or raw filenames on an untidy library. That is a
+    stated expectation (RESEARCH.md, "Ticket 15"), not something to
+    re-rank away here.
+    """
+    payload = await client.async_search_music(search_query, start=0, count=_FETCH_ALL)
+    hits = payload.get("array") or []
+    return [_track_node(client, hit["result"]) for hit in hits]
+
+
 async def async_browse_library(
     client: EversoloApiClient,
     media_content_type: str | None,

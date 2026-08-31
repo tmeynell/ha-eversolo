@@ -28,6 +28,7 @@ from homeassistant.components.media_player import (
     MediaPlayerState,
     MediaType,
     RepeatMode,
+    SearchMediaQuery,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -64,6 +65,7 @@ from .helpers import (
     GET_SYSTEM_SETTINGS,
     PLAY_CD_MUSIC,
     REMOVE_ALL_PLAY_QUEUE,
+    SEARCH_MUSIC,
     SET_INPUT,
     SET_POWER_OPTION,
     UNIQUE_ID,
@@ -958,6 +960,48 @@ async def test_play_media_is_gated_on_has_play_queue(
     assert features & MediaPlayerEntityFeature.PLAY_MEDIA
     assert features & MediaPlayerEntityFeature.MEDIA_ENQUEUE
     assert features & MediaPlayerEntityFeature.CLEAR_PLAYLIST
+    assert features & MediaPlayerEntityFeature.SEARCH_MEDIA
+
+
+async def test_search_media_unwraps_hits_into_track_nodes(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Each ``{"keyName", "result"}`` hit becomes the track wrapped in ``result`` (#49)."""
+    prime_device(
+        aioclient_mock, {SEARCH_MUSIC: {"json": fixture_json("searchmusicv2.json")}}
+    )
+    await setup_integration(hass)
+    entity_id = entity_id_for(hass, "_media_player")
+    player = entity_object(hass, entity_id)
+
+    found = await player.async_search_media(SearchMediaQuery(search_query="radiohead"))
+
+    assert query_of(aioclient_mock, SEARCH_MUSIC)["key"] == "radiohead"
+    assert [item.title for item in found.result] == [
+        "203-radiohead-lift",
+        "Burn the Witch",
+    ]
+    assert found.result[1].media_content_id == "6111"
+    assert found.result[1].media_content_type == MediaType.TRACK
+
+
+async def test_search_media_with_no_hits_returns_no_results(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """A query nothing matches answers ``total: 0``, not an error (#49)."""
+    prime_device(
+        aioclient_mock,
+        {SEARCH_MUSIC: {"json": fixture_json("searchmusicv2_empty.json")}},
+    )
+    await setup_integration(hass)
+    entity_id = entity_id_for(hass, "_media_player")
+    player = entity_object(hass, entity_id)
+
+    found = await player.async_search_media(
+        SearchMediaQuery(search_query="nosuchtrack")
+    )
+
+    assert found.result == []
 
 
 async def _play_media(

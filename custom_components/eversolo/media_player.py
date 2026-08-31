@@ -37,6 +37,8 @@ from homeassistant.components.media_player import (
     MediaPlayerState,
     MediaType,
     RepeatMode,
+    SearchMedia,
+    SearchMediaQuery,
 )
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
@@ -60,7 +62,7 @@ from .const import (
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import EversoloPlayback, EversoloVolume
 from .entity import EversoloEntity
-from .media_library import async_browse_library
+from .media_library import async_browse_library, async_search_library
 
 VOLUME_FEATURES = (
     MediaPlayerEntityFeature.VOLUME_SET
@@ -252,6 +254,7 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
                 | MediaPlayerEntityFeature.PLAY_MEDIA
                 | MediaPlayerEntityFeature.MEDIA_ENQUEUE
                 | MediaPlayerEntityFeature.CLEAR_PLAYLIST
+                | MediaPlayerEntityFeature.SEARCH_MEDIA
             )
 
         return features
@@ -645,6 +648,23 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         return await async_browse_library(
             self.coordinator.client, media_content_type, media_content_id
         )
+
+    # ------------------------------------------------------------------
+    # Searching the local library (#49).
+    # ------------------------------------------------------------------
+
+    async def async_search_media(self, query: SearchMediaQuery) -> SearchMedia:
+        """Search the local library, returning tracks as ``browse_media`` nodes.
+
+        ``searchMusicV2`` takes no service/platform parameter and matches
+        filenames as readily as metadata, so ``media_content_type`` /
+        ``media_filter_classes`` narrowing isn't honoured — see
+        :func:`.media_library.async_search_library`.
+        """
+        results = await async_search_library(
+            self.coordinator.client, query.search_query
+        )
+        return SearchMedia(result=results)
 
     # ------------------------------------------------------------------
     # Playing from the local library (#48).

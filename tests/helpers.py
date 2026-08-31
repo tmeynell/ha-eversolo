@@ -76,6 +76,7 @@ GET_ALBUM_MUSICS = "/ZidooMusicControl/v2/getAlbumMusics"
 GET_ARTISTS = "/ZidooMusicControl/v2/getArtists"
 GET_ARTIST_ALBUMS = "/ZidooMusicControl/v2/getArtistAlbums"
 GET_RECENTLY_PLAYED = "/ZidooMusicControl/v2/getRecentlyPlayedMusicList"
+SEARCH_MUSIC = "/ZidooMusicControl/v2/searchMusicV2"
 # Never called (#47's own acceptance criterion) — named so a test can assert
 # zero calls to it rather than trusting an absence of code to stay absent.
 GET_FOLDERS = "/ZidooMusicControl/v2/getFolders"
