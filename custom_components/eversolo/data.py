@@ -216,6 +216,10 @@ class EversoloPlayback:
     # whatever client the viewer is on), so there is nothing here for the TV
     # variant to be more correct for. See RESEARCH.md's 2026-08-22 entry.
     form_icon: str | None = None
+    # Top-level ``loopModel`` and ``hasPlayMode`` — shuffle/repeat state and
+    # its gate. See ``LOOP_MODEL_*`` in const.py for the (non-obvious) mapping.
+    loop_model: int | None = None
+    has_play_mode: bool = False
 
     @property
     def is_playing(self) -> bool:
@@ -397,6 +401,8 @@ class EversoloPlayback:
                 _as_measurement(output.get("outPutChannels")),
             ),
             form_icon=_first(source_form_icon),
+            loop_model=_as_int(state.get("loopModel")),
+            has_play_mode=bool(state.get("hasPlayMode", False)),
         )
 
 

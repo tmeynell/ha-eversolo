@@ -49,6 +49,14 @@ INPUT_INTERNAL_PLAYER = "XMOS"
 # optional MusicBrainz lookup (#18) targets.
 PLAY_TYPE_BLUETOOTH = 4
 
+# Top-level ``loopModel`` values, live-verified (ticket 14, 2026-08-22) against
+# observed skip order and end-of-track/end-of-queue behaviour — deliberately
+# not the usual "0 = off" convention. See ``EversoloPlayback.loop_model``.
+LOOP_MODEL_REPEAT_ALL = 0
+LOOP_MODEL_REPEAT_ONE = 1
+LOOP_MODEL_SHUFFLE = 2
+LOOP_MODEL_OFF = 3
+
 # Bundled fallback art for a disc the device has found no metadata for (#65) —
 # the song-id cover lookup has nothing to return in that case. Served by HA
 # itself, not the device, so this is a path rather than a device-relative one;

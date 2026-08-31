@@ -61,6 +61,21 @@ def test_playback_parses_spotify_disc_loaded_state() -> None:
     assert playback.can_seek is True
 
 
+def test_playback_parses_loop_model_and_its_gate() -> None:
+    """``loopModel``/``hasPlayMode`` ride at the top level of ``getState``."""
+    playback = EversoloPlayback.from_state(state_with(loopModel=2, hasPlayMode=True))
+
+    assert playback.loop_model == 2
+    assert playback.has_play_mode is True
+
+
+def test_playback_defaults_has_play_mode_false_when_absent() -> None:
+    """A payload silent on the gate is treated as "no", not "unknown"."""
+    playback = EversoloPlayback.from_state(state_without("hasPlayMode"))
+
+    assert playback.has_play_mode is False
+
+
 def test_playback_parses_a_genuine_cd_state() -> None:
     """A disc actually playing (playType 5) reads its own title/artist."""
     playback = EversoloPlayback.from_state(fixture_json("getstate_cd.json"))

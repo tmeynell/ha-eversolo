@@ -9,14 +9,19 @@ import aiohttp
 import pytest
 from homeassistant.components.media_player import (
     ATTR_INPUT_SOURCE,
+    ATTR_MEDIA_REPEAT,
     ATTR_MEDIA_SEEK_POSITION,
+    ATTR_MEDIA_SHUFFLE,
     ATTR_MEDIA_VOLUME_LEVEL,
     ATTR_MEDIA_VOLUME_MUTED,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
+    SERVICE_REPEAT_SET,
     SERVICE_SELECT_SOURCE,
+    SERVICE_SHUFFLE_SET,
     MediaPlayerDeviceClass,
     MediaPlayerEntityFeature,
     MediaPlayerState,
+    RepeatMode,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -71,6 +76,7 @@ PLAY_OR_PAUSE = "/ZidooMusicControl/v2/playOrPause"
 PLAY_NEXT = "/ZidooMusicControl/v2/playNext"
 PLAY_LAST = "/ZidooMusicControl/v2/playLast"
 SEEK_TO = "/ZidooMusicControl/v2/seekTo"
+SET_LOOP_MODE = "/ZidooMusicControl/v2/setLoopMode"
 SET_VOLUME = "/ZidooMusicControl/v2/setDevicesVolume"
 SET_MUTE = "/ZidooMusicControl/v2/setMuteVolume"
 
@@ -263,6 +269,96 @@ async def test_track_skips_issue_the_expected_commands(
     await _call(hass, SERVICE_MEDIA_PREVIOUS_TRACK, entity_id)
 
     assert calls_to(aioclient_mock, PLAY_LAST) == 1
+
+
+@pytest.mark.parametrize(
+    ("loop_model", "shuffle", "repeat"),
+    [
+        (0, False, RepeatMode.ALL),
+        (1, False, RepeatMode.ONE),
+        (2, True, RepeatMode.OFF),
+        (3, False, RepeatMode.OFF),
+    ],
+)
+async def test_shuffle_and_repeat_read_from_loop_model(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    loop_model: int,
+    shuffle: bool,
+    repeat: RepeatMode,
+) -> None:
+    """Each ``loopModel`` value maps onto the read side of shuffle/repeat."""
+    state = fixture_json("getstate_streaming.json")
+    state["loopModel"] = loop_model
+
+    entity_id = await _player(hass, aioclient_mock, {GET_STATE: {"json": state}})
+
+    attrs = hass.states.get(entity_id).attributes
+    assert attrs[ATTR_MEDIA_SHUFFLE] is shuffle
+    assert attrs[ATTR_MEDIA_REPEAT] == repeat
+    assert (
+        attrs[ATTR_SUPPORTED_FEATURES]
+        & (MediaPlayerEntityFeature.SHUFFLE_SET | MediaPlayerEntityFeature.REPEAT_SET)
+    ) == (MediaPlayerEntityFeature.SHUFFLE_SET | MediaPlayerEntityFeature.REPEAT_SET)
+
+
+async def test_shuffle_and_repeat_are_absent_without_the_gate(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``hasPlayMode: false`` withdraws both features, not just the writes."""
+    state = fixture_json("getstate_streaming.json")
+    state["hasPlayMode"] = False
+
+    entity_id = await _player(hass, aioclient_mock, {GET_STATE: {"json": state}})
+
+    attrs = hass.states.get(entity_id).attributes
+    assert not (
+        attrs[ATTR_SUPPORTED_FEATURES]
+        & (MediaPlayerEntityFeature.SHUFFLE_SET | MediaPlayerEntityFeature.REPEAT_SET)
+    )
+
+
+async def test_repeat_set_writes_the_matching_loop_model(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``repeat_set`` writes ``loopModel`` and shows the outcome at once."""
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _call(hass, SERVICE_REPEAT_SET, entity_id, **{ATTR_MEDIA_REPEAT: "all"})
+
+    assert query_of(aioclient_mock, SET_LOOP_MODE) == {"loop": "0"}
+    assert hass.states.get(entity_id).attributes[ATTR_MEDIA_REPEAT] == RepeatMode.ALL
+
+    await _call(hass, SERVICE_REPEAT_SET, entity_id, **{ATTR_MEDIA_REPEAT: "one"})
+    assert query_of(aioclient_mock, SET_LOOP_MODE) == {"loop": "1"}
+
+    await _call(hass, SERVICE_REPEAT_SET, entity_id, **{ATTR_MEDIA_REPEAT: "off"})
+    assert query_of(aioclient_mock, SET_LOOP_MODE) == {"loop": "3"}
+
+
+async def test_shuffle_set_writes_the_matching_loop_model(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``shuffle_set(True)`` -> loopModel 2; ``shuffle_set(False)`` -> off.
+
+    The off landing is the documented lossy asymmetry: there is no prior
+    repeat mode to restore, since the device itself has no such state.
+    """
+    entity_id = await _player(hass, aioclient_mock, _streaming())
+
+    await _call(hass, SERVICE_SHUFFLE_SET, entity_id, **{ATTR_MEDIA_SHUFFLE: True})
+
+    assert query_of(aioclient_mock, SET_LOOP_MODE) == {"loop": "2"}
+    state = hass.states.get(entity_id)
+    assert state.attributes[ATTR_MEDIA_SHUFFLE] is True
+    assert state.attributes[ATTR_MEDIA_REPEAT] == RepeatMode.OFF
+
+    await _call(hass, SERVICE_SHUFFLE_SET, entity_id, **{ATTR_MEDIA_SHUFFLE: False})
+
+    assert query_of(aioclient_mock, SET_LOOP_MODE) == {"loop": "3"}
+    state = hass.states.get(entity_id)
+    assert state.attributes[ATTR_MEDIA_SHUFFLE] is False
+    assert state.attributes[ATTR_MEDIA_REPEAT] == RepeatMode.OFF
 
 
 async def test_seek_sends_milliseconds_and_moves_the_bar(

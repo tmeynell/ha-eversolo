@@ -98,6 +98,7 @@ COMMAND_PATHS = (
     "/ZidooMusicControl/v2/setMuteVolume",
     "/ZidooMusicControl/v2/setInputList",
     "/ZidooMusicControl/v2/setOutInputList",
+    "/ZidooMusicControl/v2/setLoopMode",
     "/ZidooMusicControl/v2/setPowerOption",
     "/ZidooMusicControl/v2/playCDMusic",
     "/ZidooControlCenter/RemoteControl/sendkey",
