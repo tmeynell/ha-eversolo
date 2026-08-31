@@ -18,10 +18,10 @@ async-upnp-client==0.47.1
 
 # manifest.json only floors this (av>=16.0.1, #80) since HA Core bundles its own exact av pin
 # and eversolo must not fight it — but the test environment still needs one concrete version
-# installed. Pinned to av==17.0.1, the version homeassistant==2026.8.2 above actually bundles
+# installed. Pinned to av==18.1.0, the version homeassistant==2026.8.2 above actually bundles
 # (its package_constraints.txt), so camera.py's PyAV-facing code is tested against what a real
 # deployment installs, not an arbitrary older version that happens to satisfy the floor.
-av==17.0.1
+av==18.1.0
 
 # Not in manifest.json — homeassistant.components.camera.img_util imports this
 # unconditionally at module level (no try/except), so it has to be installed
