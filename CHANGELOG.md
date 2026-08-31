@@ -6,6 +6,8 @@ SemVer contract in `CONTRIBUTING.md`.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-31
+
 ### Added
 
 - The manual add form now checks for Eversolo devices already found on your network and offers
@@ -24,6 +26,13 @@ SemVer contract in `CONTRIBUTING.md`.
   playback — so while the switch is on and something is playing, the integration periodically
   re-writes the device's own current screensaver timeout, which resets that clock without
   changing anything you configured. Off by default (#41).
+- Shuffle and repeat, exposed via Home Assistant's native controls (only on units that report a
+  play mode) (#46).
+- The media player can browse the device's local music library — Albums, Artists and Recently
+  Played — and play a track, album or artist from there or from HA's `search_media`, replacing
+  the current queue by default or adding to it via the usual `enqueue` options. Folder browsing
+  is deliberately left out: the device's own folder listing leaks your SMB share password in
+  plain text (#47, #48, #49).
 
 ### Removed
 
@@ -53,6 +62,12 @@ SemVer contract in `CONTRIBUTING.md`.
 - The `av` dependency no longer hard-pins an exact version, which could conflict with the exact
   `av` pin Home Assistant Core bundles as one of its own base dependencies and leave the
   `eversolo` config entry stuck `not_loaded` (#80).
+- The screen switch now reads the device's real screen state on every poll instead of only
+  remembering its own last command, so turning the screen on or off at the unit itself shows up
+  here within one poll (#42).
+- Album covers in the local-library browser were blank — the shared `getImage` URL helper always
+  sent the parameter that's correct for a currently-playing track or disc, which 806s for an
+  album id; it now sends the right one for each.
 
 ## [1.2.0] - 2026-08-25
 
@@ -93,6 +108,7 @@ First public release.
   upsampling, visualization, VU/spectrum style, knob color.
 - Switches: CD auto play, EOS engine, gapless playback, screen, subwoofer output.
 
-[Unreleased]: https://github.com/tmeynell/ha-eversolo/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/tmeynell/ha-eversolo/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/tmeynell/ha-eversolo/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/tmeynell/ha-eversolo/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/tmeynell/ha-eversolo/releases/tag/1.1.0
