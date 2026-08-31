@@ -38,6 +38,13 @@ history in the project's `CLAUDE.md`).
 | `getdspsourceinlist.json` | `/ZidooMusicControl/v2/getDSPSourceInList?isDSP=1` | 2026-08-15 — per-input profile assignment + enable; the only place this mapping appears |
 | `getcdlist.json` | `/ZidooMusicControl/v2/getCDList` | **derived** — see below |
 | `getcdlist_empty.json` | `/ZidooMusicControl/v2/getCDList` | `[]` — the empty-tray shape, no disc loaded |
+| `getalbums.json` | `/ZidooMusicControl/v2/getAlbums?start=0&count=3` | 2026-08-31, `192.168.0.63`/`v1.1.80` — **real, unmodified** — 3 of 384 albums |
+| `getartists.json` | `/ZidooMusicControl/v2/getArtists?start=0&count=3` | 2026-08-31, same capture session — **real, unmodified** — 3 of 168 artists on this library |
+| `getalbummusics.json` | `/ZidooMusicControl/v2/getAlbumMusics?id=469&start=0&count=3` | 2026-08-31 — **real, unmodified** — 3 of 11 tracks off `getalbums.json`'s own "A Moon Shaped Pool" (`id:469`) |
+| `getartistalbums.json` | `/ZidooMusicControl/v2/getArtistAlbums?id=10000820&start=0&count=5` | 2026-08-31 — **real, unmodified** — the one album by `getartists.json`'s own "A Tribe Called Quest" (`id:10000820`) |
+| `getrecentlyplayedmusiclist.json` | `/ZidooMusicControl/v2/getRecentlyPlayedMusicList?start=0&count=3` | 2026-08-31 — **real, unmodified** — 3 of 11 recently played tracks |
+| `getalbummusics_empty.json` | `/ZidooMusicControl/v2/getAlbumMusics?id=999999999&...` | 2026-08-31 — **real, unmodified** — a nonexistent album id, proving the "no tracks" shape is `total:0, array:[]` rather than an error |
+| `getalbums_empty.json`, `getartists_empty.json`, `getrecentlyplayedmusiclist_empty.json` | same three endpoints | **derived** — no library on hand is actually empty, so these hand-build the `total:0, array:[]` shape `getalbummusics_empty.json` proved live, for `browse_media`'s empty-library tests |
 
 ## The `getState` fixtures
 

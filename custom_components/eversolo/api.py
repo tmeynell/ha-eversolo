@@ -427,6 +427,60 @@ class EversoloApiClient:
             f"/ZidooMusicControl/v2/setOutInputList?tag={tag}&index={index}"
         )
 
+    async def async_get_albums(self, start: int, count: int) -> dict:
+        """Return a page of the local library's album list (#47).
+
+        No pagination primitive exists on the ``browse_media`` side that
+        consumes this, so callers fetch the whole branch in one request —
+        measured live as cheap even at real-library scale (RESEARCH.md,
+        "Ticket 15": 384 albums, 64 KB, 28 ms at ``count=400``).
+        """
+        return await self._read(
+            f"/ZidooMusicControl/v2/getAlbums?start={start}&count={count}"
+        )
+
+    async def async_get_album_musics(
+        self, album_id: int, start: int, count: int
+    ) -> dict:
+        """Return a page of one album's tracks, for the Albums browse branch."""
+        return await self._read(
+            f"/ZidooMusicControl/v2/getAlbumMusics?id={album_id}"
+            f"&start={start}&count={count}"
+        )
+
+    async def async_get_artists(self, start: int, count: int) -> dict:
+        """Return a page of the local library's artist list (#47).
+
+        Same no-pagination rationale as :meth:`async_get_albums` — 523
+        artists is 60 KB, 28 ms at ``count=600`` (RESEARCH.md, "Ticket 15").
+        """
+        return await self._read(
+            f"/ZidooMusicControl/v2/getArtists?start={start}&count={count}"
+        )
+
+    async def async_get_artist_albums(
+        self, artist_id: int, start: int, count: int
+    ) -> dict:
+        """Return a page of one artist's albums, for the Artists browse branch."""
+        return await self._read(
+            f"/ZidooMusicControl/v2/getArtistAlbums?id={artist_id}"
+            f"&start={start}&count={count}"
+        )
+
+    async def async_get_recently_played_music_list(
+        self, start: int, count: int
+    ) -> dict:
+        """Return a page of recently played tracks.
+
+        Not ``getRecentlyPlayMusics`` — the two return identical ids in
+        identical order, but this one additionally populates ``path``/``url``
+        and ``addTime`` (RESEARCH.md, "Ticket 15": settled 2026-08-24).
+        """
+        return await self._read(
+            "/ZidooMusicControl/v2/getRecentlyPlayedMusicList"
+            f"?start={start}&count={count}"
+        )
+
     async def async_get_cd_list(self) -> list[dict]:
         """Return the loaded disc(s), or an empty list when the tray is empty.
 
