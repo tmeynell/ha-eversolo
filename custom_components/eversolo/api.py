@@ -417,6 +417,10 @@ class EversoloApiClient:
             f"/ZidooMusicControl/v2/setInputList?tag={tag}&index={index}"
         )
 
+    async def async_set_loop_mode(self, loop: int) -> None:
+        """Set the shuffle/repeat mode (see ``LOOP_MODEL_*`` in const.py)."""
+        await self._command(f"/ZidooMusicControl/v2/setLoopMode?loop={loop}")
+
     async def async_set_output(self, index: int, tag: str) -> None:
         """Set the output."""
         await self._command(

@@ -33,11 +33,21 @@ from homeassistant.components.media_player import (
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
+    RepeatMode,
 )
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
-from .const import CD_SOURCE, DEFAULT_CD_IMAGE_URL_PATH, LOGGER, PLAY_TYPE_BLUETOOTH
+from .const import (
+    CD_SOURCE,
+    DEFAULT_CD_IMAGE_URL_PATH,
+    LOGGER,
+    LOOP_MODEL_OFF,
+    LOOP_MODEL_REPEAT_ALL,
+    LOOP_MODEL_REPEAT_ONE,
+    LOOP_MODEL_SHUFFLE,
+    PLAY_TYPE_BLUETOOTH,
+)
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import EversoloPlayback, EversoloVolume
 from .entity import EversoloEntity
@@ -47,6 +57,16 @@ VOLUME_FEATURES = (
     | MediaPlayerEntityFeature.VOLUME_MUTE
     | MediaPlayerEntityFeature.VOLUME_STEP
 )
+
+PLAY_MODE_FEATURES = (
+    MediaPlayerEntityFeature.SHUFFLE_SET | MediaPlayerEntityFeature.REPEAT_SET
+)
+
+_REPEAT_BY_LOOP_MODEL = {
+    LOOP_MODEL_REPEAT_ALL: RepeatMode.ALL,
+    LOOP_MODEL_REPEAT_ONE: RepeatMode.ONE,
+}
+_LOOP_MODEL_BY_REPEAT = {mode: model for model, mode in _REPEAT_BY_LOOP_MODEL.items()}
 
 
 def _ignored(action: str) -> None:
@@ -67,6 +87,7 @@ class Expected:
     is_volume_muted: bool | None = None
     position: int | None = None
     source: str | None = None
+    loop_model: int | None = None
 
 
 async def async_setup_entry(hass, entry: EversoloConfigEntry, async_add_devices):
@@ -191,6 +212,8 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
             features |= MediaPlayerEntityFeature.PREVIOUS_TRACK
         if playback.can_seek:
             features |= MediaPlayerEntityFeature.SEEK
+        if playback.has_play_mode:
+            features |= PLAY_MODE_FEATURES
         if self._can_wake:
             features |= MediaPlayerEntityFeature.TURN_ON
         if capabilities is not None and capabilities.has_power_off:
@@ -372,6 +395,41 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         else:
             reported = current.name if current else None
         return self._guess(self._expected.source, reported)
+
+    @property
+    def _loop_model(self) -> int | None:
+        """The device's one shuffle/repeat state, guess-then-confirm."""
+        return self._guess(self._expected.loop_model, self._playback.loop_model)
+
+    @property
+    def shuffle(self) -> bool | None:
+        """True only for ``loopModel`` 2 — the device's one shuffle state."""
+        return self._loop_model == LOOP_MODEL_SHUFFLE
+
+    @property
+    def repeat(self) -> RepeatMode:
+        """Map ``loopModel`` onto HA's repeat modes; anything else reads off."""
+        return _REPEAT_BY_LOOP_MODEL.get(self._loop_model, RepeatMode.OFF)
+
+    async def async_set_shuffle(self, shuffle: bool) -> None:
+        """Turn shuffle on/off.
+
+        Off lands on ``loopModel`` 3 (off), not whatever repeat mode preceded
+        it: the device has no state to restore from, so caching a prior
+        repeat value here would invent state the device doesn't have and
+        desync the moment the front panel is touched. Turning shuffle on
+        silently drops any repeat mode that was set — an intentional,
+        documented lossy mapping (#46), visible within one poll cycle.
+        """
+        loop_model = LOOP_MODEL_SHUFFLE if shuffle else LOOP_MODEL_OFF
+        await self.coordinator.client.async_set_loop_mode(loop_model)
+        self._expect(loop_model=loop_model)
+
+    async def async_set_repeat(self, repeat: RepeatMode) -> None:
+        """Set the repeat mode, per the ``loopModel`` mapping above."""
+        loop_model = _LOOP_MODEL_BY_REPEAT.get(repeat, LOOP_MODEL_OFF)
+        await self.coordinator.client.async_set_loop_mode(loop_model)
+        self._expect(loop_model=loop_model)
 
     @property
     def source_list(self) -> list[str] | None:
