@@ -220,6 +220,12 @@ class EversoloPlayback:
     # its gate. See ``LOOP_MODEL_*`` in const.py for the (non-obvious) mapping.
     loop_model: int | None = None
     has_play_mode: bool = False
+    # Top-level ``hasPlayQueue`` — the gate for browsing the local library
+    # (#47). Ticket 14 went looking for this in ``everSoloPlayInfo``
+    # (``hasQueue``/``isCanShowPlayQueue``) and found it false with a queue
+    # actively playing; it was one level too shallow — the real flag is this
+    # top-level one (RESEARCH.md, "The real play-mode gates").
+    has_play_queue: bool = False
 
     @property
     def is_playing(self) -> bool:
@@ -403,6 +409,7 @@ class EversoloPlayback:
             form_icon=_first(source_form_icon),
             loop_model=_as_int(state.get("loopModel")),
             has_play_mode=bool(state.get("hasPlayMode", False)),
+            has_play_queue=bool(state.get("hasPlayQueue", False)),
         )
 
 

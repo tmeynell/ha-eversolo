@@ -1,0 +1,41 @@
+{
+    "id": 0,
+    "start": 0,
+    "count": 3,
+    "total": 100,
+    "array": [
+        {
+            "id": 406,
+            "name": "A Foot in the Door The Best of Pink Floyd",
+            "artist": "Pink Floyd",
+            "genre": "Psychedelic Rock; Progressive Rock; Classic Rock; Rock",
+            "pubDate": "2011-11-07",
+            "pinyinName": "A Foot in the Door The Best of Pink Floyd",
+            "pinyinArtist": "Pink Floyd",
+            "count": 0,
+            "favor": false
+        },
+        {
+            "id": 469,
+            "name": "A Moon Shaped Pool",
+            "artist": "Radiohead",
+            "genre": "Art Rock",
+            "pubDate": "2016-06-17",
+            "pinyinName": "A Moon Shaped Pool",
+            "pinyinArtist": "Radiohead",
+            "count": 0,
+            "favor": false
+        },
+        {
+            "id": 387,
+            "name": "always centered at night",
+            "artist": "Moby",
+            "genre": "Downtempo; Electronic",
+            "pubDate": "2024-06-14",
+            "pinyinName": "always centered at night",
+            "pinyinArtist": "Moby",
+            "count": 0,
+            "favor": false
+        }
+    ]
+}

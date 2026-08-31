@@ -917,6 +917,29 @@ async def test_a_player_with_neither_power_flag_offers_no_power_control(
     assert not features & MediaPlayerEntityFeature.TURN_OFF
 
 
+async def test_browse_media_is_gated_on_has_play_queue(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``hasPlayQueue: true`` (the default fixture) advertises BROWSE_MEDIA (#47)."""
+    entity_id = await _player(hass, aioclient_mock)
+
+    features = hass.states.get(entity_id).attributes[ATTR_SUPPORTED_FEATURES]
+    assert features & MediaPlayerEntityFeature.BROWSE_MEDIA
+
+
+async def test_browse_media_is_absent_without_the_gate(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """``hasPlayQueue: false`` withdraws the feature — ticket 14's real gate (#47)."""
+    state = fixture_json("getstate_streaming.json")
+    state["hasPlayQueue"] = False
+
+    entity_id = await _player(hass, aioclient_mock, {GET_STATE: {"json": state}})
+
+    features = hass.states.get(entity_id).attributes[ATTR_SUPPORTED_FEATURES]
+    assert not features & MediaPlayerEntityFeature.BROWSE_MEDIA
+
+
 async def test_turn_on_sends_a_magic_packet_and_no_http_command(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

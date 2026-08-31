@@ -69,6 +69,16 @@ GET_CD_LIST = "/ZidooMusicControl/v2/getCDList"
 # on path alone (see ``calls_to``/``query_of``), so this one constant covers
 # both the ``mode=1`` handshake and the ``mode=0`` teardown call.
 SETCASTMODE = "/ZidooControlCenter/setcastmode"
+# Read on demand by ``browse_media`` (#47), not polled — same reason as
+# ``GET_CD_LIST`` above.
+GET_ALBUMS = "/ZidooMusicControl/v2/getAlbums"
+GET_ALBUM_MUSICS = "/ZidooMusicControl/v2/getAlbumMusics"
+GET_ARTISTS = "/ZidooMusicControl/v2/getArtists"
+GET_ARTIST_ALBUMS = "/ZidooMusicControl/v2/getArtistAlbums"
+GET_RECENTLY_PLAYED = "/ZidooMusicControl/v2/getRecentlyPlayedMusicList"
+# Never called (#47's own acceptance criterion) — named so a test can assert
+# zero calls to it rather than trusting an absence of code to stay absent.
+GET_FOLDERS = "/ZidooMusicControl/v2/getFolders"
 
 # Every endpoint the coordinator polls, with the capture that answers it.
 DEVICE_ENDPOINTS: dict[str, str] = {

@@ -28,6 +28,7 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.components.media_player import (
+    BrowseMedia,
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
@@ -51,6 +52,7 @@ from .const import (
 from .coordinator import EversoloConfigEntry, EversoloDataUpdateCoordinator
 from .data import EversoloPlayback, EversoloVolume
 from .entity import EversoloEntity
+from .media_library import async_browse_library
 
 VOLUME_FEATURES = (
     MediaPlayerEntityFeature.VOLUME_SET
@@ -218,6 +220,8 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
             features |= MediaPlayerEntityFeature.TURN_ON
         if capabilities is not None and capabilities.has_power_off:
             features |= MediaPlayerEntityFeature.TURN_OFF
+        if playback.has_play_queue:
+            features |= MediaPlayerEntityFeature.BROWSE_MEDIA
 
         return features
 
@@ -596,3 +600,17 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
         """Power the device off — the same command the Power Off button sends."""
         await self.coordinator.client.async_trigger_power_off()
         self._expect(state=MediaPlayerState.OFF)
+
+    # ------------------------------------------------------------------
+    # Browsing the local library (#47).
+    # ------------------------------------------------------------------
+
+    async def async_browse_media(
+        self,
+        media_content_type: str | None = None,
+        media_content_id: str | None = None,
+    ) -> BrowseMedia:
+        """Browse Albums, Artists and Recently Played (see :mod:`.media_library`)."""
+        return await async_browse_library(
+            self.coordinator.client, media_content_type, media_content_id
+        )

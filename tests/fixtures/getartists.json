@@ -1,0 +1,32 @@
+{
+    "id": 0,
+    "start": 0,
+    "count": 3,
+    "total": 168,
+    "array": [
+        {
+            "id": 10000820,
+            "name": "A Tribe Called Quest",
+            "pinyinName": "A Tribe Called Quest",
+            "count": 0,
+            "favor": false,
+            "isAlbumArtist": false
+        },
+        {
+            "id": 10000739,
+            "name": "Alex Reece",
+            "pinyinName": "Alex Reece",
+            "count": 0,
+            "favor": false,
+            "isAlbumArtist": false
+        },
+        {
+            "id": 10000879,
+            "name": "Alexis Korner\u00e2\u20ac\u2122s Blues Incorporated",
+            "pinyinName": "Alexis Korner\u00e2\u20ac\u2122s Blues Incorporated",
+            "count": 0,
+            "favor": false,
+            "isAlbumArtist": false
+        }
+    ]
+}
