@@ -75,6 +75,22 @@ async def test_cover_url_carries_the_params_getimage_requires(
     )
 
 
+async def test_cover_url_for_an_album_uses_type_1_not_type_4(
+    hass: HomeAssistant,
+) -> None:
+    """``musicType=2`` (album) 806s under ``type=4`` — needs ``type=1`` instead.
+
+    Live-verified against the A8 while chasing #47's browse_media thumbnails
+    showing blank for every album; ``type=4`` only works for a song-shaped id
+    (track, disc).
+    """
+    url = _client(hass).create_image_url_by_song_id(469, 2)
+
+    assert url == (
+        f"{BASE_URL}/ZidooMusicControl/v2/getImage?id=469&musicType=2&type=1&target=16"
+    )
+
+
 async def test_cover_url_defaults_a_missing_music_type_to_zero(
     hass: HomeAssistant,
 ) -> None:
