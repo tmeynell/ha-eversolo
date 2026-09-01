@@ -703,6 +703,77 @@ async def test_the_keepalive_does_not_fire_while_nothing_is_playing(
     assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
 
 
+async def test_a_volume_change_keeps_the_screensaver_at_bay_on_an_inert_input(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """Ticket 19: eARC has no "carrying audio" signal — a volume nudge stands in.
+
+    Unlike the playback-driven keepalive, a single volume change touches the
+    device immediately rather than waiting out ``SCREENSAVER_KEEPALIVE_CYCLES``
+    of "changed" — a one-off nudge would never accumulate that many.
+    """
+    current = {"state": fixture_json("getstate_earc_stuck_playing.json")}
+    entity_id = await _suppress_screensaver(
+        hass,
+        aioclient_mock,
+        {
+            GET_STATE: answers_with(lambda: current["state"]),
+            GET_SCREENSAVER_TIME_LIST: {
+                "json": fixture_json("getscreensavertimelist.json")
+            },
+            SET_SCREENSAVER_TIME: {"text": '{"status":200}'},
+        },
+    )
+    await hass.services.async_call(
+        SWITCH_DOMAIN, SERVICE_TURN_ON, {ATTR_ENTITY_ID: entity_id}, blocking=True
+    )
+    await advance_cycles(hass, freezer, 1)
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
+
+    louder = fixture_json("getstate_earc_stuck_playing.json")
+    louder["volumeData"]["currenttVolume"] += 1
+    current["state"] = louder
+    await advance_cycles(hass, freezer, 1)
+
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 1
+
+
+async def test_a_volume_change_while_switched_off_does_not_misfire_once_turned_on(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
+) -> None:
+    """Volume is tracked even while the switch is off.
+
+    Otherwise turning the switch on later would compare the next reading
+    against a stale pre-off baseline and touch the device immediately even
+    though nothing changed since the switch came on.
+    """
+    current = {"state": fixture_json("getstate_earc_stuck_playing.json")}
+    entity_id = await _suppress_screensaver(
+        hass,
+        aioclient_mock,
+        {
+            GET_STATE: answers_with(lambda: current["state"]),
+            GET_SCREENSAVER_TIME_LIST: {
+                "json": fixture_json("getscreensavertimelist.json")
+            },
+            SET_SCREENSAVER_TIME: {"text": '{"status":200}'},
+        },
+    )
+
+    louder = fixture_json("getstate_earc_stuck_playing.json")
+    louder["volumeData"]["currenttVolume"] += 1
+    current["state"] = louder
+    await advance_cycles(hass, freezer, 1)
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
+
+    await hass.services.async_call(
+        SWITCH_DOMAIN, SERVICE_TURN_ON, {ATTR_ENTITY_ID: entity_id}, blocking=True
+    )
+    await advance_cycles(hass, freezer, 1)
+
+    assert calls_to(aioclient_mock, SET_SCREENSAVER_TIME) == 0
+
+
 async def test_suppress_screensaver_picks_its_last_request_back_up(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer
 ) -> None:

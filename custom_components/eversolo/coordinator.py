@@ -63,6 +63,7 @@ from .data import (
     EversoloDevice,
     EversoloPlayback,
     EversoloProcessing,
+    EversoloVolume,
 )
 from .musicbrainz import EversoloMusicBrainzClient
 
@@ -179,6 +180,10 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         # User preference, not a device reading — see the screensaver switch.
         self._suppress_screensaver = False
         self._cycles_since_screensaver_keepalive = 0
+        # Tracked regardless of the switch's state, so the first cycle after
+        # it is turned on compares against a real prior reading rather than
+        # None or a stale value from before it was off.
+        self._last_screensaver_volume: int | None = None
         super().__init__(
             hass=hass,
             logger=LOGGER,
@@ -262,7 +267,7 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
             self._track_device_name(data.device.name)
         self._settle_capability_gates(data.processing)
         self._maybe_lookup_bluetooth_cover(data.playback)
-        await self._async_maybe_keep_screensaver_awake(data.playback)
+        await self._async_maybe_keep_screensaver_awake(data.playback, data.volume)
 
         self._cycles_since_settings += 1
         if self._cycles_since_settings >= SETTINGS_REFRESH_CYCLES:
@@ -400,7 +405,7 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         )
 
     async def _async_maybe_keep_screensaver_awake(
-        self, playback: EversoloPlayback
+        self, playback: EversoloPlayback, volume: EversoloVolume
     ) -> None:
         """Reset the device's screensaver idle clock while suppression is on.
 
@@ -417,15 +422,44 @@ class EversoloDataUpdateCoordinator(DataUpdateCoordinator[EversoloData]):
         The counter resets whenever suppression is off or nothing is playing,
         so the first keep-alive after playback (re)starts always lands a full
         interval later, never immediately.
+
+        A volume change is the second, independent trigger, for the case
+        ``is_playing`` structurally cannot cover: eARC/TV has no live
+        "carrying audio" signal anywhere in the device's firmware (ticket 19,
+        ``docs/getstate-transport-settings.md`` §11 — the real hotplug/signal
+        detector is native-side and neither HTTP API reads it back), so a
+        listener sitting on TV audio with the switch on would otherwise
+        screensave regardless of how loud the room is. A volume nudge — from
+        the device, its remote, or HA — is the closest thing to a real
+        presence signal that *is* visible, and it works the same way on every
+        input, not just eARC. Unlike playback it is a one-off event rather
+        than an ongoing state, so it bypasses the cycle counter and touches
+        the device immediately instead of waiting to accumulate
+        :data:`SCREENSAVER_KEEPALIVE_CYCLES` cycles of "changed" — a single
+        nudge would never reach that on its own.
         """
-        if not self._suppress_screensaver or not playback.is_playing:
+        previous_volume = self._last_screensaver_volume
+        self._last_screensaver_volume = volume.current
+        volume_changed = (
+            previous_volume is not None
+            and volume.current is not None
+            and volume.current != previous_volume
+        )
+
+        if not self._suppress_screensaver:
             self._cycles_since_screensaver_keepalive = 0
             return
 
-        self._cycles_since_screensaver_keepalive += 1
-        if self._cycles_since_screensaver_keepalive < SCREENSAVER_KEEPALIVE_CYCLES:
+        if volume_changed:
+            self._cycles_since_screensaver_keepalive = 0
+        elif playback.is_playing:
+            self._cycles_since_screensaver_keepalive += 1
+            if self._cycles_since_screensaver_keepalive < SCREENSAVER_KEEPALIVE_CYCLES:
+                return
+            self._cycles_since_screensaver_keepalive = 0
+        else:
+            self._cycles_since_screensaver_keepalive = 0
             return
-        self._cycles_since_screensaver_keepalive = 0
 
         try:
             current = await self.client.async_get_screensaver_time_list()

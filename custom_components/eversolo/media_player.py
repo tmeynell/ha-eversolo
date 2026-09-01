@@ -263,8 +263,11 @@ class EversoloMediaPlayer(EversoloEntity, MediaPlayerEntity):
     def state(self) -> MediaPlayerState:
         """Return Media Player state.
 
-        ``playStatus`` is the honest signal (1 playing, 0 not); the top-level
-        ``state`` field goes stale on an inert input. The device draws no line
+        ``playback.is_playing`` is the honest signal — raw ``playStatus``
+        alone is not, it sticks at 1 on an inert passthrough input, which is
+        why that property also gates on ``can_change_play_status``. The
+        top-level ``state`` field goes stale on an inert input too. The
+        device draws no line
         between paused and stopped, so a stopped track the unit can still
         resume reads as paused. A track it cannot drive at all — the disc still
         reported while the unit sits on the TV input — is not "paused": nothing

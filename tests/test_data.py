@@ -197,6 +197,25 @@ def test_playback_on_the_tv_input_is_inert() -> None:
     assert playback.is_playing is False
 
 
+def test_stuck_play_status_on_an_inert_input_does_not_read_as_playing() -> None:
+    """The device can leave ``playStatus: 1`` stuck on an inert input.
+
+    Live capture on EARC (TV) with nothing playing, 2026-09-01: ``playStatus``
+    reads ``1`` same as genuine playback, but every ``isCan*`` transport flag
+    is ``false`` and position/duration are both ``0`` — the same "inert"
+    signature ``getstate_earc.json`` shows with ``playStatus: 0``. Without the
+    ``can_change_play_status`` gate this reported ``is_playing`` forever,
+    which kept the screensaver-suppression switch from ever letting go.
+    """
+    playback = EversoloPlayback.from_state(
+        fixture_json("getstate_earc_stuck_playing.json")
+    )
+
+    assert playback.play_status == 1
+    assert playback.can_change_play_status is False
+    assert playback.is_playing is False
+
+
 def test_a_stale_disc_is_not_trusted_while_another_input_is_live() -> None:
     """#22: ``playingMusic`` still names the disc on eARC — none of it is read.
 
