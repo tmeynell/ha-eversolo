@@ -6,6 +6,17 @@ SemVer contract in `CONTRIBUTING.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- "Suppress screensaver during playback" did nothing on the TV (eARC) input: the device has no
+  way to report whether audio is actually flowing over eARC, so playback alone could never keep
+  the screensaver at bay there. The keep-alive now also re-touches the device's screensaver
+  timeout immediately on any detected volume change — from the device, its remote, or Home
+  Assistant — which catches this case on every input, not just eARC.
+- `media_player.eversolo` could read as playing forever on an inert passthrough input (TV/eARC,
+  analog RCA): the device leaves `playStatus` stuck at `1` even with nothing playing. `is_playing`
+  now also requires the device's own `can_change_play_status` flag.
+
 ## [1.3.0] - 2026-08-31
 
 ### Added
