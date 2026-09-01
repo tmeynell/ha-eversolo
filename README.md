@@ -103,18 +103,23 @@ while it does).
 **Suppress screensaver during playback re-touches the device's own timeout,
 rather than disabling it.** The device's screensaver runs on a pure
 idle-since-last-write clock that ignores playback, and there is no setting
-that turns it off during playback — so while this switch is on and something
-is playing, the integration periodically re-writes the device's own current
-screensaver timeout, which resets that clock without changing anything you
-configured. Off by default; nothing is touched unless you turn it on.
+that turns it off during playback — so while this switch is on, the
+integration periodically re-writes the device's own current screensaver
+timeout, which resets that clock without changing anything you configured.
+It does this while something is playing, and also immediately on any
+detected volume change — from the device, its remote, or Home Assistant —
+which matters most on the TV (eARC) input: the device has no way to report
+whether audio is actually flowing over eARC, so playback alone can't keep
+the screensaver at bay there. Off by default; nothing is touched unless you
+turn it on.
 
 That re-write is also, incidentally, the only way this integration ever
 touches the screen itself: if the device is already sitting on its
 screensaver (or the screen is off) when a keep-alive cycle fires, the write
 dismisses it back to the now-playing screen — confirmed live against a real
 unit. It's a side effect of resetting the idle clock, not a deliberate "wake
-the screen" feature, and it only happens while this switch is on and
-something is playing.
+the screen" feature, and it only happens while this switch is on and either
+something is playing or the volume just changed.
 
 **A couple of images are loaded straight from the device, unencrypted.** The
 Input sensor's icon, and occasionally the media player's now-playing picture
