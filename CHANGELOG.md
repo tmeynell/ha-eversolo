@@ -6,6 +6,8 @@ SemVer contract in `CONTRIBUTING.md`.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-01
+
 ### Fixed
 
 - "Suppress screensaver during playback" did nothing on the TV (eARC) input: the device has no
@@ -119,7 +121,8 @@ First public release.
   upsampling, visualization, VU/spectrum style, knob color.
 - Switches: CD auto play, EOS engine, gapless playback, screen, subwoofer output.
 
-[Unreleased]: https://github.com/tmeynell/ha-eversolo/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/tmeynell/ha-eversolo/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/tmeynell/ha-eversolo/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/tmeynell/ha-eversolo/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/tmeynell/ha-eversolo/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/tmeynell/ha-eversolo/releases/tag/1.1.0
