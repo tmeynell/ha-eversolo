@@ -229,8 +229,18 @@ class EversoloPlayback:
 
     @property
     def is_playing(self) -> bool:
-        """True when the device reports active playback."""
-        return self.play_status == 1
+        """True when the device reports active playback.
+
+        ``playStatus`` alone is not enough: on an inert passthrough input
+        (TV/eARC, analog RCA — ``playType`` 11/12) the device leaves it
+        stuck at ``1`` forever, even with nothing playing, ``position`` and
+        ``duration`` at ``0`` and every ``isCan*`` transport flag ``false``.
+        Confirmed live 2026-09-01 on EARC with nothing playing:
+        ``playStatus: 1``, ``isCanChangePlayStatus: false``. A genuinely
+        playing source always has ``can_change_play_status`` True, so gate
+        on both.
+        """
+        return self.play_status == 1 and self.can_change_play_status
 
     @property
     def is_cd(self) -> bool:
