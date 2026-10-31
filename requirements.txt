@@ -2,4 +2,4 @@ aiohasupervisor==0.6.0
 colorlog==6.10.1
 homeassistant==2026.8.2
 pip>=21.0,<26.1
-ruff==0.16.4
+ruff==0.16.5
